@@ -39,6 +39,22 @@ services:
       timeout: 3s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: skillsphere-mailpit
+    restart: unless-stopped
+    # Catches every outgoing email instead of delivering it, with a web inbox
+    # at :8025. This is how mail should be handled in development — the
+    # alternative is either sending real email to real people by accident, or
+    # disabling mail entirely and never noticing that a template is broken.
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web inbox
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
 volumes:
   postgres_data:
   redis_data:

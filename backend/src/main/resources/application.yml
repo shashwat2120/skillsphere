@@ -89,6 +89,17 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      group:
+        # Readiness decides whether this instance should receive traffic, so it
+        # includes only what the app genuinely cannot serve requests without.
+        # Mail is deliberately excluded: it is queued and asynchronous, so an
+        # SMTP outage must not pull a healthy instance out of the load balancer
+        # and turn a degraded feature into an outage. It still appears in the
+        # overall health report, where it belongs.
+        readiness:
+          include: db, redis
+        liveness:
+          include: livenessState
   health:
     redis:
       enabled: true
