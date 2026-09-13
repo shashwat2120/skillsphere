@@ -1,0 +1,43 @@
+# Test profile.
+#
+# Deliberately does NOT override the datasource: Testcontainers supplies it via
+# @ServiceConnection, and hard-coding a URL here would quietly point the suite at
+# a developer's local database and start mutating real data.
+spring:
+  jpa:
+    hibernate:
+      # Same validate as production. The point of testing against real Postgres
+      # is to catch entity/schema drift, and letting Hibernate create the schema
+      # here would hide exactly that.
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+skillsphere:
+  security:
+    jwt:
+      secret: test-only-secret-value-at-least-32-bytes-long-for-hs256
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+      issuer: skillsphere-test
+    cors:
+      allowed-origins: http://localhost:5173
+  mail:
+    from-address: noreply@skillsphere.test
+    from-name: SkillSphere Test
+    app-base-url: http://localhost:5173
+
+management:
+  health:
+    mail:
+      # Off because the suite replaces JavaMailSender with a mock, and the mail
+      # health contributor then has no real sender to wrap and fails the whole
+      # context with "'beans' must not be empty". The contributor is not under
+      # test here — actual delivery is verified separately against Mailpit.
+      enabled: false
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN
+    org.springframework.modulith: WARN
