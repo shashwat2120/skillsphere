@@ -69,6 +69,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void authenticate(JwtService.AccessTokenClaims claims, HttpServletRequest request) {
+        // Exposed so logout can deny this exact token without re-parsing it.
+        // Kept as request attributes rather than stuffed into the principal,
+        // which other modules read and which should carry identity only.
+        request.setAttribute("jwt.tokenId", claims.tokenId());
+        request.setAttribute("jwt.expiresAt", claims.expiresAt());
+
         List<SimpleGrantedAuthority> authorities = claims.roles().stream()
                 .map(SimpleGrantedAuthority::new)
                 .toList();

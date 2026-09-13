@@ -90,7 +90,18 @@ public class TokenDenylist {
                 return true;
             }
             String cutoff = redis.opsForValue().get(USER_CUTOFF_PREFIX + userId);
-            if (cutoff != null && issuedAt.getEpochSecond() < Long.parseLong(cutoff)) {
+            // Note <= rather than <. A JWT's iat claim has one-second
+            // granularity, so a token issued in the same second as the
+            // revocation would otherwise survive it — and automated token theft
+            // plays out in milliseconds, which makes that exact second the one
+            // that matters. Erring the other way costs at most one token issued
+            // moments after a revocation, which a fresh login replaces
+            // immediately; erring the way this originally did leaves a stolen
+            // token live for its full lifetime.
+            //
+            // Found by an end-to-end test where iat and the cutoff landed on the
+            // same second and the supposedly revoked token kept working.
+            if (cutoff != null && issuedAt.getEpochSecond() <= Long.parseLong(cutoff)) {
                 return true;
             }
             return false;
