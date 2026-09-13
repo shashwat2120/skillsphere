@@ -99,7 +99,7 @@ public class RefreshToken extends BaseEntity {
     public void revoke(RevocationReason reason) {
         if (revokedAt == null) {
             this.revokedAt = Instant.now();
-            this.revokedReason = reason.name().toLowerCase();
+            this.revokedReason = reason.name();
         }
     }
 

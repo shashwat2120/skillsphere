@@ -50,7 +50,7 @@ public class SessionRevoker {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void revokeAllSessions(Long userId, RefreshToken.RevocationReason reason) {
         int revoked = refreshTokens.revokeAllForUser(
-                userId, Instant.now(), reason.name().toLowerCase());
+                userId, Instant.now(), reason.name());
 
         denylist.denyAllForUser(userId, jwtProperties.accessTokenTtl());
 
