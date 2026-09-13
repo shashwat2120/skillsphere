@@ -1,0 +1,130 @@
+spring:
+  application:
+    name: skillsphere
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skillsphere
+    username: skillsphere
+    password: skillsphere
+    hikari:
+      # Sized for a single app instance against one Postgres. Bigger is not
+      # better: every idle connection is memory on the database side, and the
+      # bottleneck is almost never the pool.
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+
+  jpa:
+    # Flyway owns the schema. Hibernate must never alter it — 'validate' turns a
+    # drifted entity into a startup failure instead of a silent data problem.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false          # avoids lazy loading during view rendering
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+        query:
+          in_clause_parameter_padding: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  threads:
+    virtual:
+      # Java 21 virtual threads. The decisive win for us is WebSocket and
+      # inference work, where requests spend their life blocked on I/O.
+      enabled: true
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: false
+
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,application/javascript
+    min-response-size: 1024
+  error:
+    # Never leak stack traces or internal messages to a client.
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    redis:
+      enabled: true
+
+# ---------------------------------------------------------------------------
+# Application settings. Values that tune learning behaviour also exist in the
+# platform_settings table so an admin can retune them without a redeploy; these
+# are the bootstrap defaults.
+# ---------------------------------------------------------------------------
+skillsphere:
+  security:
+    jwt:
+      # Override in every non-local environment. Never commit a real secret.
+      secret: ${JWT_SECRET:local-development-secret-change-me-at-least-32-bytes-long}
+      access-token-minutes: 15
+      refresh-token-days: 30
+    rate-limit:
+      login-attempts-per-minute: 5
+      login-attempts-per-hour: 20
+  adaptive:
+    # Elo step size. Higher reacts faster but is noisier; 32 is the chess default
+    # and a sane starting point until we have real response data.
+    elo-k-factor: 32
+    diagnostic-max-items: 25
+    diagnostic-target-se: 0.30
+    mastery-threshold: 0.80
+  confusion:
+    failure-threshold: 3
+    window-minutes: 30
+  viva:
+    default-turns: 5
+    pass-threshold: 0.60
+    turn-time-limit-seconds: 180
+
+logging:
+  level:
+    root: INFO
+    com.skillsphere: DEBUG
+    org.flywaydb: INFO

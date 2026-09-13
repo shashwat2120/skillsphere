@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: skillsphere-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: skillsphere
+      POSTGRES_USER: skillsphere
+      POSTGRES_PASSWORD: skillsphere
+      # Deterministic collation so ORDER BY behaves identically everywhere,
+      # including inside Testcontainers and on a teammate's machine.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # The app must not start migrating before Postgres accepts connections.
+      test: ["CMD-SHELL", "pg_isready -U skillsphere -d skillsphere"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: skillsphere-redis
+    restart: unless-stopped
+    # appendonly keeps the JWT denylist across restarts — losing it would
+    # silently resurrect revoked tokens until they expire.
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:

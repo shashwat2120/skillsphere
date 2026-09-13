@@ -1,5 +1,6 @@
 target/
 *.class
+!.mvn/wrapper/maven-wrapper.jar
 node_modules/
 dist/
 .env
