@@ -110,12 +110,20 @@ management:
 # are the bootstrap defaults.
 # ---------------------------------------------------------------------------
 skillsphere:
+  mail:
+    from-address: ${MAIL_FROM:noreply@skillsphere.dev}
+    from-name: SkillSphere
+    # Configuration, never derived from a request header. Building links from
+    # the Host header lets an attacker point a password-reset email at a domain
+    # they control and harvest the token.
+    app-base-url: ${APP_BASE_URL:http://localhost:5173}
   security:
     jwt:
       # Override in every non-local environment. Never commit a real secret.
       secret: ${JWT_SECRET:local-development-secret-change-me-at-least-32-bytes-long}
-      access-token-minutes: 15
-      refresh-token-days: 30
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+      issuer: skillsphere
     rate-limit:
       login-attempts-per-minute: 5
       login-attempts-per-hour: 20

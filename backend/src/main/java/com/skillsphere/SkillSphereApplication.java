@@ -2,6 +2,7 @@ package com.skillsphere;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -19,6 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * event writes and inference calls must never sit on the request path.
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 @EnableAsync
 @EnableScheduling
 public class SkillSphereApplication {

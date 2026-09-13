@@ -8,5 +8,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Notification",
-        allowedDependencies = {"shared"})
+        allowedDependencies = {"shared", "identity :: events"})
 package com.skillsphere.notification;
