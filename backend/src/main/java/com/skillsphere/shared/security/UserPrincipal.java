@@ -1,4 +1,4 @@
-package com.skillsphere.identity.security;
+package com.skillsphere.shared.security;
 
 import java.io.Serializable;
 import java.util.List;

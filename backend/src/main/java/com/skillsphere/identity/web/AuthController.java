@@ -1,7 +1,7 @@
 package com.skillsphere.identity.web;
 
 import com.skillsphere.identity.internal.AuthService;
-import com.skillsphere.identity.security.UserPrincipal;
+import com.skillsphere.shared.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
