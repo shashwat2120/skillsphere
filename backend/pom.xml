@@ -22,7 +22,21 @@
              a WebSocket-heavy application. Boot 4 allows 17, but 21 is the
              recommended baseline. -->
         <java.version>21</java.version>
+        <!-- Modulith 2.x is the Spring Boot 4 line; 1.x targets Boot 3. -->
+        <spring-modulith.version>2.1.1</spring-modulith.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.modulith</groupId>
+                <artifactId>spring-modulith-bom</artifactId>
+                <version>${spring-modulith.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- ==================== Web / Core ==================== -->
@@ -92,6 +106,24 @@
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
+        <!-- ==================== Modularity ==================== -->
+        <!-- Spring Modulith turns "we kept strict module boundaries" from a
+             matter of discipline into a build-time assertion: a test fails if
+             one module reaches into another's internals. That is precisely what
+             makes the Sprint 6 split an extraction rather than a rewrite. -->
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-core</artifactId>
+        </dependency>
+        <!-- The Event Publication Registry is a transactional outbox: a domain
+             change and its outgoing event commit in the same local transaction,
+             so an event can never be lost after a successful write. In Sprint 6
+             the same events are relayed to Kafka with no application changes. -->
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-jpa</artifactId>
+        </dependency>
+
         <!-- ==================== Boilerplate ==================== -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -159,6 +191,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Verifies module boundaries and generates the module documentation -->
+        <dependency>
+            <groupId>org.springframework.modulith</groupId>
+            <artifactId>spring-modulith-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
