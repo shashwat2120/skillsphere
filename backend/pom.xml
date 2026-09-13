@@ -25,6 +25,7 @@
         <!-- Modulith 2.x is the Spring Boot 4 line; 1.x targets Boot 3. -->
         <spring-modulith.version>2.1.1</spring-modulith.version>
         <jjwt.version>0.13.0</jjwt.version>
+        <springdoc.version>3.1.1</springdoc.version>
     </properties>
 
     <dependencyManagement>
@@ -105,6 +106,17 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!-- ==================== API documentation ==================== -->
+        <!-- springdoc 3.x is the Spring Boot 4 line; 2.x targets Boot 3.
+             Worth carrying beyond convenience: the contract is generated from
+             the controllers, so it cannot drift from what the API actually
+             does, and in Sprint 6 each service publishes its own. -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- ==================== JWT ==================== -->

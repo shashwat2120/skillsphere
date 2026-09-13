@@ -127,6 +127,11 @@ skillsphere:
     rate-limit:
       login-attempts-per-minute: 5
       login-attempts-per-hour: 20
+    cors:
+      # Listed explicitly, never wildcarded. A wildcard cannot be combined with
+      # credentials, and an enumerated list means a bad deployment fails loudly
+      # instead of quietly accepting requests from any origin.
+      allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
   adaptive:
     # Elo step size. Higher reacts faster but is noisier; 32 is the chess default
     # and a sane starting point until we have real response data.

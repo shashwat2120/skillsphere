@@ -109,6 +109,7 @@ public class JwtService {
                     claims.getId(),
                     claims.get("email", String.class),
                     roles == null ? List.of() : roles,
+                    claims.getIssuedAt().toInstant(),
                     claims.getExpiration().toInstant()));
 
         } catch (JwtException | IllegalArgumentException ex) {
@@ -121,10 +122,17 @@ public class JwtService {
 
     public record IssuedToken(String token, String tokenId, Instant expiresAt) {}
 
+    /**
+     * @param issuedAt needed by the denylist: a per-user revocation cutoff
+     *                 rejects every token issued before a given moment, which
+     *                 is the only way to invalidate tokens this instance has
+     *                 never seen.
+     */
     public record AccessTokenClaims(
             Long userId,
             String tokenId,
             String email,
             List<String> roles,
+            Instant issuedAt,
             Instant expiresAt) {}
 }
