@@ -19,7 +19,7 @@ CREATE TABLE users (
     bio                 TEXT,
     timezone            VARCHAR(64)   NOT NULL DEFAULT 'UTC',
     locale              VARCHAR(10)   NOT NULL DEFAULT 'en',
-    status              VARCHAR(20)   NOT NULL DEFAULT 'active',
+    status              VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE',
     email_verified_at   TIMESTAMPTZ,
     last_login_at       TIMESTAMPTZ,
     created_at          TIMESTAMPTZ   NOT NULL DEFAULT now(),
@@ -27,13 +27,13 @@ CREATE TABLE users (
     deleted_at          TIMESTAMPTZ,
 
     CONSTRAINT uq_users_email       UNIQUE (email),
-    CONSTRAINT ck_users_status      CHECK (status IN ('active', 'pending', 'suspended')),
+    CONSTRAINT ck_users_status      CHECK (status IN ('ACTIVE', 'PENDING', 'SUSPENDED')),
     -- password_hash is nullable so passkey-only and OAuth-only accounts are possible
     CONSTRAINT ck_users_email_lower CHECK (email = lower(email))
 );
 
 COMMENT ON TABLE  users IS 'Platform accounts. password_hash holds an Argon2id digest and is null for passkey-only or OAuth-only users.';
-COMMENT ON COLUMN users.status IS 'active = usable; pending = awaiting admin approval (instructors); suspended = blocked, sessions terminated on next request.';
+COMMENT ON COLUMN users.status IS 'ACTIVE = usable; PENDING = awaiting admin approval (instructors); SUSPENDED = blocked, sessions terminated on next request. Enum literals are uppercase throughout the schema to match JPA @Enumerated(STRING).';
 
 CREATE INDEX idx_users_status      ON users (status) WHERE deleted_at IS NULL;
 CREATE INDEX idx_users_created     ON users (created_at DESC);
@@ -47,15 +47,15 @@ CREATE TABLE roles (
     description  VARCHAR(255),
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
 
-    CONSTRAINT uq_roles_name CHECK (name IN ('learner', 'instructor', 'admin', 'employer'))
+    CONSTRAINT uq_roles_name CHECK (name IN ('LEARNER', 'INSTRUCTOR', 'ADMIN', 'EMPLOYER'))
 );
 CREATE UNIQUE INDEX uq_roles_name_idx ON roles (name);
 
 INSERT INTO roles (name, description) VALUES
-    ('learner',    'Learns through paths, takes assessments, submits projects and defends them'),
-    ('instructor', 'Authors content and items, reviews submissions, runs live sessions'),
-    ('admin',      'Manages the skill graph, career catalogue, users and platform settings'),
-    ('employer',   'Views shared skill passports and their supporting evidence');
+    ('LEARNER',    'Learns through paths, takes assessments, submits projects and defends them'),
+    ('INSTRUCTOR', 'Authors content and items, reviews submissions, runs live sessions'),
+    ('ADMIN',      'Manages the skill graph, career catalogue, users and platform settings'),
+    ('EMPLOYER',   'Views shared skill passports and their supporting evidence');
 
 CREATE TABLE user_roles (
     user_id     BIGINT      NOT NULL,
