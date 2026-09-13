@@ -63,6 +63,7 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final TokenDenylist denylist;
     private final SessionRevoker sessionRevoker;
+    private final LoginAttemptService loginAttempts;
     private final ApplicationEventPublisher events;
 
     // ---------------------------------------------------------------------
@@ -170,7 +171,21 @@ public class AuthService {
 
     @Transactional
     public LoginResult login(AuthDtos.LoginRequest request, String ipAddress, String userAgent) {
-        Optional<User> found = users.findActiveByEmail(request.email().trim().toLowerCase());
+        String email = request.email().trim().toLowerCase();
+
+        // Checked before any password work. Verifying first would let a blocked
+        // caller keep spending Argon2id's 64 MiB and quarter-second cost on
+        // every rejected attempt, turning the lockout into a resource-exhaustion
+        // vector aimed at our own server.
+        //
+        // The response is identical to a wrong password on purpose: saying
+        // "temporarily locked" would confirm the address is registered and tell
+        // an attacker their attack is landing.
+        if (loginAttempts.isBlocked(email, ipAddress)) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+
+        Optional<User> found = users.findActiveByEmail(email);
 
         // The password is verified even when no account matched, against a
         // throwaway hash. Skipping it would return "no such account" in about a
@@ -185,6 +200,12 @@ public class AuthService {
         }
 
         if (found.isEmpty() || !passwordValid) {
+            // Counted against the address even when no such account exists.
+            // Skipping it for unknown addresses would leave an attacker free to
+            // probe non-existent accounts at unlimited speed, and the difference
+            // in throttling between known and unknown addresses would itself be
+            // an enumeration signal.
+            loginAttempts.recordFailure(email, ipAddress);
             throw new BadCredentialsException("Invalid credentials");
         }
 
@@ -196,9 +217,16 @@ public class AuthService {
         // in.
         if (!user.isActive()) {
             log.info("Login blocked for {} account {}", user.getStatus(), user.getId());
+            // Not counted as a failure: the credentials were correct, and a
+            // pending instructor refreshing the page while awaiting approval
+            // should not lock themselves out of an account they will shortly be
+            // given access to.
             throw new BadCredentialsException("Invalid credentials");
         }
 
+        // Clears the failure counter, so someone who mistypes twice and then
+        // succeeds carries no penalty at all.
+        loginAttempts.recordSuccess(email);
         user.setLastLoginAt(Instant.now());
 
         return issueSession(user, ipAddress, userAgent);

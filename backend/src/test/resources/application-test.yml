@@ -13,6 +13,10 @@ spring:
   flyway:
     enabled: true
 
+# One skillsphere block, deliberately. YAML has no merge semantics for repeated
+# top-level keys — a second block silently replaces the first rather than adding
+# to it, so appending login-limits separately would have wiped out the JWT
+# settings above and left the suite failing on a missing secret.
 skillsphere:
   security:
     jwt:
@@ -22,6 +26,16 @@ skillsphere:
       issuer: skillsphere-test
     cors:
       allowed-origins: http://localhost:5173
+    login-limits:
+      # Widened for the suite: every test runs from the same loopback address,
+      # so production's per-IP cap would have tests throttling one another and
+      # failing based on execution order.
+      ip-attempts: 10000
+      ip-window: 1m
+      # Kept small so lockout tests can actually reach the threshold without
+      # hammering Argon2id — each hash costs 64 MiB and roughly 250ms.
+      account-failures: 3
+      account-window: 15m
   mail:
     from-address: noreply@skillsphere.test
     from-name: SkillSphere Test
