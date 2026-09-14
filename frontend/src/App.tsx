@@ -5,6 +5,9 @@ import { hasRole, useAuth } from '@/stores/auth'
 import { AppShell } from '@/components/layout/AppShell'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
+import { VerifyEmailPage } from '@/pages/VerifyEmailPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SkillTreePage } from '@/pages/SkillTreePage'
 import { DiagnosticPage } from '@/pages/DiagnosticPage'
@@ -109,6 +112,14 @@ export default function App() {
             someone who has never seen this product before. */}
         <Route path="/p/:token" element={<PublicPassportPage />} />
         <Route path="/arena/join" element={<ArenaPlayPage />} />
+        {/* Deliberately not behind RedirectIfAuthenticated, unlike /login and
+            /register. A reset link exists precisely for when account access
+            is in question — a stale session on this device must not block
+            reaching it — and email confirmation is meaningless to gate on
+            being logged in at all. */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/arena/join/:code" element={<ArenaPlayPage />} />
 
         <Route
