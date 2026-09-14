@@ -157,6 +157,13 @@ skillsphere:
     default-turns: 5
     pass-threshold: 0.60
     turn-time-limit-seconds: 180
+  ollama:
+    base-url: http://localhost:11434
+    model: llama3.2:3b
+    # Cold load on Windows measured ~12s for this model; subsequent calls are
+    # sub-second once it's resident. Set generously above the cold case so a
+    # first-of-session viva doesn't time out while the model loads.
+    timeout-seconds: 45
 
 logging:
   level:

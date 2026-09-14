@@ -9,6 +9,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { SkillTreePage } from '@/pages/SkillTreePage'
 import { DiagnosticPage } from '@/pages/DiagnosticPage'
 import { CareerPage } from '@/pages/CareerPage'
+import { ProjectsPage } from '@/pages/ProjectsPage'
+import { ProjectWorkspacePage } from '@/pages/ProjectWorkspacePage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -89,6 +91,8 @@ export default function App() {
           <Route path="/skills" element={<SkillTreePage />} />
           <Route path="/diagnostics/:skillId" element={<DiagnosticPage />} />
           <Route path="/career" element={<CareerPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
