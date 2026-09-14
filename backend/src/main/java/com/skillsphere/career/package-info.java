@@ -8,5 +8,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Career and Paths",
-        allowedDependencies = {"shared", "skill", "content", "assessment"})
+        allowedDependencies = {"shared", "skill", "content", "assessment", "verification"})
 package com.skillsphere.career;

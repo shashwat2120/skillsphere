@@ -11,6 +11,8 @@ import { DiagnosticPage } from '@/pages/DiagnosticPage'
 import { CareerPage } from '@/pages/CareerPage'
 import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ProjectWorkspacePage } from '@/pages/ProjectWorkspacePage'
+import { PassportPage } from '@/pages/PassportPage'
+import { PublicPassportPage } from '@/pages/PublicPassportPage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -79,6 +81,9 @@ export default function App() {
             </RedirectIfAuthenticated>
           }
         />
+        {/* Public — no auth, no app shell. A share link has to make sense to
+            someone who has never seen this product before. */}
+        <Route path="/p/:token" element={<PublicPassportPage />} />
 
         <Route
           element={
@@ -93,6 +98,7 @@ export default function App() {
           <Route path="/career" element={<CareerPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
+          <Route path="/passport" element={<PassportPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
