@@ -11,6 +11,7 @@ import com.skillsphere.skill.SkillLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,11 +84,25 @@ public class DiagnosticService {
                     "There are no unanswered questions left for " + skill.name() + ".");
         }
 
-        Assessment assessment = assessments.save(
-                new Assessment(userId, AssessmentType.DIAGNOSTIC, skillId));
-
-        log.info("Started diagnostic {} for user {} on skill '{}'",
-                assessment.getId(), userId, skill.name());
+        Assessment assessment;
+        try {
+            assessment = assessments.save(new Assessment(userId, AssessmentType.DIAGNOSTIC, skillId));
+            log.info("Started diagnostic {} for user {} on skill '{}'",
+                    assessment.getId(), userId, skill.name());
+        } catch (DataIntegrityViolationException raceLost) {
+            // The database enforces at most one IN_PROGRESS assessment per
+            // learner (V13). Two "start" requests close enough together — a
+            // double click, two tabs, a retried request — can both pass the
+            // check above before either has committed; one insert wins the
+            // unique constraint and the other lands here. That is not this
+            // learner's error, so resume the assessment the other request
+            // created rather than surfacing a 500 for what was, from where
+            // they are sitting, a single click.
+            assessment = assessments.findByUserIdAndStatus(userId, AssessmentStatus.IN_PROGRESS)
+                    .orElseThrow(() -> raceLost);
+            log.info("Lost the race to start diagnostic for user {} on skill '{}' — resuming {} instead",
+                    userId, skill.name(), assessment.getId());
+        }
 
         return serveNext(assessment, userId);
     }

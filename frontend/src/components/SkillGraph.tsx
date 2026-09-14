@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 export interface GraphSkill {
@@ -19,6 +20,17 @@ const NODE_W = 168
 const NODE_H = 54
 const PAD_X = 28
 const PAD_Y = 44
+
+/**
+ * Shortens a string to fit its label. Paired with the per-node clipPath
+ * below, not a substitute for it — this keeps normal-length names reading
+ * cleanly with a plain ellipsis; the clip is what guarantees an unusually
+ * long one (an admin-entered skill name, say) can never bleed past the node
+ * boundary into whatever is drawn next to it.
+ */
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
 
 /**
  * The skill graph, drawn as a graph.
@@ -47,6 +59,7 @@ export function SkillGraph({
   edges: { from: number; to: number; hard: boolean }[]
 }) {
   const [hovered, setHovered] = useState<number | null>(null)
+  const navigate = useNavigate()
 
   const positions = useMemo(() => {
     const map = new Map<number, { x: number; y: number }>()
@@ -121,6 +134,10 @@ export function SkillGraph({
           const stroke = `var(--${state})`
           const fill = `var(--${state}-bg)`
           const dim = hovered !== null && hovered !== skill.id
+          // A locked skill has no diagnostic to take yet — its prerequisites
+          // are not met, so there is nothing for the adaptive selector to
+          // meaningfully target. Only mastered/available nodes launch one.
+          const clickable = state !== 'locked'
 
           return (
             <motion.g
@@ -130,7 +147,10 @@ export function SkillGraph({
               transition={{ duration: 0.18, delay: Math.min(index * 0.02, 0.2) }}
               onMouseEnter={() => setHovered(skill.id)}
               onMouseLeave={() => setHovered(null)}
-              style={{ cursor: 'pointer' }}
+              onClick={() => clickable && navigate(`/diagnostics/${skill.id}`)}
+              role={clickable ? 'button' : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              style={{ cursor: clickable ? 'pointer' : 'default' }}
             >
               <rect
                 x={pos.x}
@@ -154,28 +174,40 @@ export function SkillGraph({
                 fill={stroke}
               />
 
-              <text
-                x={pos.x + 12}
-                y={pos.y + 22}
-                fontSize={12.5}
-                fontWeight={500}
-                fill="var(--fg)"
-              >
-                {skill.name.length > 21 ? `${skill.name.slice(0, 20)}…` : skill.name}
-              </text>
+              {/* Text is clipped to the node's own rect as a hard guarantee,
+                  not just truncated by character count. Truncation alone once
+                  let "needs Object-Oriented Programming" run straight out of
+                  a 168px box and across the next column — a name long enough
+                  to survive the character budget below would do the same
+                  again. The clip makes overflow physically impossible
+                  regardless of what an admin later names a skill. */}
+              <clipPath id={`node-clip-${skill.id}`}>
+                <rect x={pos.x} y={pos.y} width={NODE_W} height={NODE_H} />
+              </clipPath>
+              <g clipPath={`url(#node-clip-${skill.id})`}>
+                <text
+                  x={pos.x + 12}
+                  y={pos.y + 22}
+                  fontSize={12.5}
+                  fontWeight={500}
+                  fill="var(--fg)"
+                >
+                  {truncate(skill.name, 21)}
+                </text>
 
-              <text
-                x={pos.x + 12}
-                y={pos.y + 39}
-                fontSize={10.5}
-                fill="var(--fg-subtle)"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                {(skill.masteryProbability * 100).toFixed(0).padStart(2, '0')}%
-                {state === 'locked' && skill.blockedBy.length
-                  ? `  · needs ${skill.blockedBy[0].name}`
-                  : ''}
-              </text>
+                <text
+                  x={pos.x + 12}
+                  y={pos.y + 39}
+                  fontSize={10.5}
+                  fill="var(--fg-subtle)"
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                  {(skill.masteryProbability * 100).toFixed(0).padStart(2, '0')}%
+                  {state === 'locked' && skill.blockedBy.length
+                    ? `  · needs ${truncate(skill.blockedBy[0].name, 12)}`
+                    : ''}
+                </text>
+              </g>
             </motion.g>
           )
         })}

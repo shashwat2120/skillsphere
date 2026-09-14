@@ -141,7 +141,14 @@ skillsphere:
     # and a sane starting point until we have real response data.
     elo-k-factor: 32
     diagnostic-max-items: 25
-    diagnostic-target-se: 0.30
+    # Measured, not guessed. An item with discrimination ~1.3 contributes at
+    # most 0.42 of information, so precision climbs from 1.0 by roughly 0.3 per
+    # response. Reaching SE 0.30 needs precision 11.1 — around 34 items per
+    # skill, which is a research-grade target no teaching bank will sustain.
+    # SE 0.40 needs roughly 18, which a real bank can supply and which is ample
+    # for routing decisions. Verified against a live 16-item run that reached
+    # 0.46.
+    diagnostic-target-se: 0.40
     mastery-threshold: 0.80
   confusion:
     failure-threshold: 3

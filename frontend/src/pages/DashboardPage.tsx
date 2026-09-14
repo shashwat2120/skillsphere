@@ -70,13 +70,17 @@ export function DashboardPage() {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.24) }}
-                className="rounded-sq border border-line bg-surface p-4 transition-colors hover:border-accent/40"
               >
-                <Target className="size-4 text-accent" />
-                <h3 className="mt-2 text-sm font-medium">{skill.name}</h3>
-                <p className="mt-0.5 text-xs text-fg-muted">
-                  Prerequisites met
-                </p>
+                <Link
+                  to={`/diagnostics/${skill.id}`}
+                  className="block rounded-sq border border-line bg-surface p-4 transition-colors hover:border-accent/40"
+                >
+                  <Target className="size-4 text-accent" />
+                  <h3 className="mt-2 text-sm font-medium">{skill.name}</h3>
+                  <p className="mt-0.5 text-xs text-fg-muted">
+                    Prerequisites met — take the diagnostic
+                  </p>
+                </Link>
               </motion.div>
             ))}
           </div>
