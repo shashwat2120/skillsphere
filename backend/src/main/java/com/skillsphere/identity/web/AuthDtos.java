@@ -77,6 +77,20 @@ public final class AuthDtos {
             String message) {
     }
 
+    public record ForgotPasswordRequest(
+            @NotBlank @Email String email) {
+    }
+
+    /**
+     * Minimum length matches registration. A reset that accepted a weaker
+     * password than signup would be the easiest way to downgrade an account.
+     */
+    public record ResetPasswordRequest(
+            @NotBlank String token,
+            @NotBlank @Size(min = 12, max = 200,
+                    message = "Password must be at least 12 characters") String newPassword) {
+    }
+
     public record MessageResponse(String message) {
     }
 }

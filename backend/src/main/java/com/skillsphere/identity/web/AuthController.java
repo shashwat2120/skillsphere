@@ -1,6 +1,7 @@
 package com.skillsphere.identity.web;
 
 import com.skillsphere.identity.internal.AuthService;
+import com.skillsphere.identity.internal.PasswordResetService;
 import com.skillsphere.shared.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -56,6 +57,7 @@ public class AuthController {
     private static final String REFRESH_PATH = "/api/auth";
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @Operation(summary = "Create an account",
@@ -121,6 +123,36 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, clearedRefreshCookie().toString())
                 .body(new AuthDtos.MessageResponse("Signed out."));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request a password reset link",
+            description = "Always reports success, whatever address is submitted. Saying "
+                    + "\"no account with that email\" would turn this into a free "
+                    + "account-enumeration oracle.")
+    public ResponseEntity<AuthDtos.MessageResponse> forgotPassword(
+            @Valid @RequestBody AuthDtos.ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+        // Identical response in every case — including a throttled request and
+        // an address that does not exist.
+        return ResponseEntity.ok(new AuthDtos.MessageResponse(
+                "If an account exists for that address, a reset link is on its way."));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Set a new password using a reset token",
+            description = "Revokes every existing session on success. A reset usually follows a "
+                    + "compromise, so leaving sessions alive would keep the attacker signed in "
+                    + "while the owner believes the problem is fixed.")
+    public ResponseEntity<AuthDtos.MessageResponse> resetPassword(
+            @Valid @RequestBody AuthDtos.ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity.ok()
+                // The old session is dead, so clear the stale cookie rather than
+                // leaving the browser to present a token that can never work.
+                .header(HttpHeaders.SET_COOKIE, clearedRefreshCookie().toString())
+                .body(new AuthDtos.MessageResponse(
+                        "Password updated. You have been signed out everywhere — sign in again."));
     }
 
     @PostMapping("/verify-email")
