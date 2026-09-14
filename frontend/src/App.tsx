@@ -13,6 +13,9 @@ import { ProjectsPage } from '@/pages/ProjectsPage'
 import { ProjectWorkspacePage } from '@/pages/ProjectWorkspacePage'
 import { PassportPage } from '@/pages/PassportPage'
 import { PublicPassportPage } from '@/pages/PublicPassportPage'
+import { ArenasPage } from '@/pages/ArenasPage'
+import { ArenaHostPage } from '@/pages/ArenaHostPage'
+import { ArenaPlayPage } from '@/pages/ArenaPlayPage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -84,6 +87,8 @@ export default function App() {
         {/* Public — no auth, no app shell. A share link has to make sense to
             someone who has never seen this product before. */}
         <Route path="/p/:token" element={<PublicPassportPage />} />
+        <Route path="/arena/join" element={<ArenaPlayPage />} />
+        <Route path="/arena/join/:code" element={<ArenaPlayPage />} />
 
         <Route
           element={
@@ -99,6 +104,8 @@ export default function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
           <Route path="/passport" element={<PassportPage />} />
+          <Route path="/arenas" element={<ArenasPage />} />
+          <Route path="/arenas/:arenaId" element={<ArenaHostPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

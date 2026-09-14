@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Award, FolderGit2, GitBranch, LayoutDashboard, LogOut, Moon, Sun, Target } from 'lucide-react'
+import { Award, FolderGit2, GitBranch, LayoutDashboard, LogOut, Moon, Sun, Swords, Target } from 'lucide-react'
 import { useAuth } from '@/stores/auth'
 import { useTheme } from '@/hooks/useTheme'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/career', label: 'Career', icon: Target },
   { to: '/projects', label: 'Projects', icon: FolderGit2 },
   { to: '/passport', label: 'Passport', icon: Award },
+  { to: '/arenas', label: 'Arena', icon: Swords },
 ]
 
 export function AppShell() {

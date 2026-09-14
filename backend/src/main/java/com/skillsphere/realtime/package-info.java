@@ -8,5 +8,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Realtime",
-        allowedDependencies = {"shared"})
+        allowedDependencies = {"shared", "identity", "skill", "assessment"})
 package com.skillsphere.realtime;

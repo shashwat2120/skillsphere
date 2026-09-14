@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -81,6 +82,23 @@ public class SecurityConfig {
                         // A shared passport is meant to be opened by someone
                         // without an account; the share token is the credential.
                         .requestMatchers("/api/public/passports/**").permitAll()
+                        // The WebSocket handshake is itself a plain HTTP request,
+                        // and arenas allow unauthenticated guest participants —
+                        // this must stay open at the transport level, with the
+                        // real identity check happening inside the STOMP CONNECT
+                        // frame (StompAuthChannelInterceptor), the one place that
+                        // can tell a signed-in learner from a guest without
+                        // rejecting the guest outright.
+                        .requestMatchers("/ws/**").permitAll()
+                        // Arenas allow guest participants with no account at
+                        // all — preview, join and answer have to work without
+                        // a bearer token. Create/start/advance/end are not
+                        // listed here and stay authenticated by the default
+                        // rule below, since only the instructor who owns the
+                        // arena may drive it.
+                        .requestMatchers(HttpMethod.GET, "/api/realtime/arenas/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/realtime/arenas/*/join").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/realtime/arenas/*/answer").permitAll()
 
                         // --- role-gated areas ---
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
