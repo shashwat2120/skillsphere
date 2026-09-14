@@ -1,12 +1,23 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Award, FolderGit2, GitBranch, LayoutDashboard, LogOut, Moon, Sun, Swords, Target } from 'lucide-react'
-import { useAuth } from '@/stores/auth'
+import {
+  Award,
+  BarChart3,
+  FolderGit2,
+  GitBranch,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  Sun,
+  Swords,
+  Target,
+} from 'lucide-react'
+import { hasRole, useAuth } from '@/stores/auth'
 import { useTheme } from '@/hooks/useTheme'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const NAV = [
+const BASE_NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/skills', label: 'Skill tree', icon: GitBranch },
   { to: '/career', label: 'Career', icon: Target },
@@ -19,6 +30,11 @@ export function AppShell() {
   const { user, logout } = useAuth()
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()
+
+  const isInstructor = hasRole(user, 'INSTRUCTOR') || hasRole(user, 'ADMIN')
+  const nav = isInstructor
+    ? [...BASE_NAV, { to: '/instructor/analytics', label: 'Analytics', icon: BarChart3 }]
+    : BASE_NAV
 
   const initials = (user?.fullName ?? '?')
     .split(' ')
@@ -37,7 +53,7 @@ export function AppShell() {
           <span className="font-semibold tracking-tight">SkillSphere</span>
 
           <nav className="flex items-center gap-1">
-            {NAV.map(({ to, label, icon: Icon }) => (
+            {nav.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}

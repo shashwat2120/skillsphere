@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
-import { useAuth } from '@/stores/auth'
+import { hasRole, useAuth } from '@/stores/auth'
 import { AppShell } from '@/components/layout/AppShell'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -16,6 +16,7 @@ import { PublicPassportPage } from '@/pages/PublicPassportPage'
 import { ArenasPage } from '@/pages/ArenasPage'
 import { ArenaHostPage } from '@/pages/ArenaHostPage'
 import { ArenaPlayPage } from '@/pages/ArenaPlayPage'
+import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -53,6 +54,19 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
   const { user, initialising } = useAuth()
   if (initialising) return null
   return user ? <Navigate to="/" replace /> : <>{children}</>
+}
+
+/**
+ * Gate for instructor-only pages, nested inside {@link RequireAuth} so it
+ * only ever runs once a session is confirmed. Redirects to the dashboard
+ * rather than a dedicated "forbidden" page — a learner landing here almost
+ * certainly followed a stale link, not tested a boundary, and the
+ * dashboard is where they actually want to be.
+ */
+function RequireInstructor({ children }: { children: React.ReactNode }) {
+  const user = useAuth((state) => state.user)
+  const isInstructor = hasRole(user, 'INSTRUCTOR') || hasRole(user, 'ADMIN')
+  return isInstructor ? <>{children}</> : <Navigate to="/" replace />
 }
 
 export default function App() {
@@ -106,6 +120,14 @@ export default function App() {
           <Route path="/passport" element={<PassportPage />} />
           <Route path="/arenas" element={<ArenasPage />} />
           <Route path="/arenas/:arenaId" element={<ArenaHostPage />} />
+          <Route
+            path="/instructor/analytics"
+            element={
+              <RequireInstructor>
+                <AnalyticsDashboardPage />
+              </RequireInstructor>
+            }
+          />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

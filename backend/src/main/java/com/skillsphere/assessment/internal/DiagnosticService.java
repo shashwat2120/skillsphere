@@ -1,5 +1,6 @@
 package com.skillsphere.assessment.internal;
 
+import com.skillsphere.assessment.ResponseRecorded;
 import com.skillsphere.assessment.domain.*;
 import com.skillsphere.assessment.web.DiagnosticDtos;
 import com.skillsphere.shared.error.ForbiddenException;
@@ -11,6 +12,7 @@ import com.skillsphere.skill.SkillLookup;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,7 @@ public class DiagnosticService {
     private final AdaptiveSelector selector;
     private final MasteryUpdater masteryUpdater;
     private final SkillLookup skillLookup;
+    private final ApplicationEventPublisher events;
 
     @Value("${skillsphere.adaptive.diagnostic-max-items:25}")
     private int maxItems;
@@ -180,6 +183,9 @@ public class DiagnosticService {
         response.setMasteryAfter(BigDecimal.valueOf(result.masteryProbability()));
         response.setMisconceptionId(misconceptionId);
         responses.save(response);
+
+        events.publishEvent(new ResponseRecorded(userId, item.getSkillId(), item.getId(),
+                correct, request.responseTimeMs(), java.time.Instant.now()));
 
         assessment.recordAnswer(correct);
 

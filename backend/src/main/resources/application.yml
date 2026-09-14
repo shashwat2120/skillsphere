@@ -164,6 +164,11 @@ skillsphere:
     # sub-second once it's resident. Set generously above the cold case so a
     # first-of-session viva doesn't time out while the model loads.
     timeout-seconds: 45
+  risk:
+    # Matches the seeded platform_settings row (risk.early_window_days) —
+    # kept as its own property because risk scoring reads it on every
+    # scheduled pass, not from a table an admin UI edits yet.
+    early-window-days: 14
 
 logging:
   level:

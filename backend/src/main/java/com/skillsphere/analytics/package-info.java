@@ -11,5 +11,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Analytics",
-        allowedDependencies = {"shared"})
+        allowedDependencies = {"shared", "assessment", "skill"})
 package com.skillsphere.analytics;
