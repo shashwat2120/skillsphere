@@ -438,7 +438,7 @@ function VerdictScreen({ viva, onExit }: { viva: VivaResult; onExit: () => void 
       </p>
       <p className="mx-auto mt-2 max-w-sm text-sm text-fg-muted">{message}</p>
 
-      {viva.overallScore !== null && (
+      {viva.overallScore != null && (
         <p className="num mt-4 text-2xl font-semibold">{Math.round((viva.overallScore ?? 0) * 100)}%</p>
       )}
 

@@ -84,7 +84,7 @@ export function PublicPassportPage() {
             Every number below traces to a specific diagnostic or a project
             defended live — not a self-reported claim.
           </p>
-          {readinessScore !== null && (
+          {readinessScore != null && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-sq border border-line bg-surface px-3 py-2">
               <span className="num text-xl font-semibold">{Math.round(readinessScore)}%</span>
               <span className="text-sm text-fg-muted">ready for {roleTitle}</span>

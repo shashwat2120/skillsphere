@@ -171,7 +171,7 @@ function SkillRow({
             className="overflow-hidden border-t border-line"
           >
             <div className="px-4 py-3.5">
-              {skill.diagnosticMastery !== null && (
+              {skill.diagnosticMastery != null && (
                 <div className="mb-3 flex items-center justify-between text-xs">
                   <span className="text-fg-muted">Diagnostic mastery (Bayesian Knowledge Tracing)</span>
                   <span className="num font-medium">
@@ -276,7 +276,7 @@ function ShareDialog({ onClose }: { onClose: () => void }) {
         ) : (
           <>
             <h3 className="text-sm font-semibold">Link ready</h3>
-            {result.readinessScore !== null && (
+            {result.readinessScore != null && (
               <p className="mt-1 text-xs text-fg-muted">
                 {Math.round(result.readinessScore)}% ready for {result.roleTitle}
               </p>
