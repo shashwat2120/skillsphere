@@ -41,10 +41,10 @@ export function LoginPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Left: the pitch. Hidden below lg — on a phone it would push the form
           below the fold, and someone who came here to sign in wants the form. */}
-      <aside className="relative hidden overflow-hidden bg-primary-subtle lg:flex lg:flex-col lg:justify-between lg:p-12">
+      <aside className="relative hidden overflow-hidden bg-bg-sunken lg:flex lg:flex-col lg:justify-between lg:p-12">
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-primary/15 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent/10 blur-3xl"
         />
         <span className="relative text-lg font-semibold tracking-tight">SkillSphere</span>
 
@@ -52,13 +52,13 @@ export function LoginPage() {
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">
             Every skill claim comes with proof that can be checked.
           </h1>
-          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 text-sm leading-relaxed text-fg-muted">
             Learning platforms tell you someone finished a course. We show you
             what they can actually do, and the evidence behind it.
           </p>
         </div>
 
-        <p className="relative flex items-center gap-2 text-xs text-muted-foreground">
+        <p className="relative flex items-center gap-2 text-xs text-fg-muted">
           <ShieldCheck className="size-4" />
           Argon2id hashing · rotating tokens · instant revocation
         </p>
@@ -72,7 +72,7 @@ export function LoginPage() {
           className="w-full max-w-sm"
         >
           <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-fg-muted">
             Sign in to continue building your skill profile.
           </p>
 
@@ -112,9 +112,9 @@ export function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <p className="mt-6 text-center text-sm text-fg-muted">
             No account?{' '}
-            <Link to="/register" className="font-medium text-primary hover:underline">
+            <Link to="/register" className="font-medium text-accent hover:underline">
               Create one
             </Link>
           </p>

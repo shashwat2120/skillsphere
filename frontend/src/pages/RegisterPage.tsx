@@ -71,7 +71,7 @@ export function RegisterPage() {
         className="w-full max-w-md"
       >
         <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-fg-muted">
           Build a skill profile backed by evidence, not certificates.
         </p>
 
@@ -120,7 +120,7 @@ export function RegisterPage() {
             <p
               className={cn(
                 'flex items-center gap-1.5 text-xs transition-colors',
-                passwordLongEnough ? 'text-success' : 'text-muted-foreground',
+                passwordLongEnough ? 'text-mastered' : 'text-fg-muted',
               )}
             >
               {passwordLongEnough && <Check className="size-3.5" />}
@@ -140,20 +140,20 @@ export function RegisterPage() {
                     onClick={() => setForm({ ...form, role: value })}
                     aria-pressed={selected}
                     className={cn(
-                      'rounded-app border p-3 text-left transition-all',
+                      'rounded-sq border p-3 text-left transition-all',
                       selected
-                        ? 'border-primary bg-primary-subtle'
-                        : 'border-border hover:border-border-strong',
+                        ? 'border-accent bg-bg-sunken'
+                        : 'border-line hover:border-line-strong',
                     )}
                   >
                     <Icon
                       className={cn(
                         'size-4',
-                        selected ? 'text-primary' : 'text-muted-foreground',
+                        selected ? 'text-accent' : 'text-fg-muted',
                       )}
                     />
                     <span className="mt-2 block text-sm font-medium">{label}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">{note}</span>
+                    <span className="mt-0.5 block text-xs text-fg-muted">{note}</span>
                   </button>
                 )
               })}
@@ -166,9 +166,9 @@ export function RegisterPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-6 text-center text-sm text-fg-muted">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-primary hover:underline">
+          <Link to="/login" className="font-medium text-accent hover:underline">
             Sign in
           </Link>
         </p>

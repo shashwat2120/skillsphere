@@ -117,6 +117,23 @@ public final class SkillDtos {
             boolean hardGate) {
     }
 
+    /** An edge, flattened for the client. hard = blocks progression. */
+    public record EdgeRef(Long from, Long to, boolean hard) {
+    }
+
+    /**
+     * Nodes and edges together in one response.
+     *
+     * <p>Deliberately a single call. Fetching skills and then edges separately
+     * means the client renders nodes with no connections for a frame, and the
+     * graph visibly assembles itself — which reads as a loading bug rather than
+     * an animation.
+     */
+    public record LearnerGraphResponse(
+            List<LearnerSkillResponse> skills,
+            List<EdgeRef> edges) {
+    }
+
     /** A skill plus its immediate neighbours, for the graph editor. */
     public record SkillGraphNode(
             SkillResponse skill,

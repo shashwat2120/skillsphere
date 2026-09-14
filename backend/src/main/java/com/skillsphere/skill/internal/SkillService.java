@@ -165,6 +165,27 @@ public class SkillService {
 
     // -----------------------------------------------------------------
 
+    /**
+     * Nodes and edges in one response.
+     *
+     * <p>Returned together on purpose: fetching them separately makes the client
+     * paint nodes with no connections for a frame, so the graph visibly
+     * assembles itself and reads as a loading fault rather than a transition.
+     */
+    @Transactional(readOnly = true)
+    public SkillDtos.LearnerGraphResponse graphForLearner(Long userId, BigDecimal masteryThreshold) {
+        List<SkillDtos.LearnerSkillResponse> nodes = listForLearner(userId, masteryThreshold);
+
+        List<SkillDtos.EdgeRef> edges = prerequisites.findAll().stream()
+                .map(edge -> new SkillDtos.EdgeRef(
+                        edge.getPrerequisiteSkill().getId(),
+                        edge.getSkill().getId(),
+                        edge.isHardGate()))
+                .toList();
+
+        return new SkillDtos.LearnerGraphResponse(nodes, edges);
+    }
+
     private void applyOptional(Skill skill, Long categoryId, com.skillsphere.shared.domain.LevelBand band,
                                Integer estMinutes, BigDecimal decayRate) {
         if (categoryId != null) {

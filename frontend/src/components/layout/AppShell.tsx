@@ -24,11 +24,11 @@ export function AppShell() {
     .toUpperCase()
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-bg">
       {/* Sticky, translucent header. backdrop-blur keeps content visible behind
           it rather than hiding it under an opaque bar, which matters on the
           skill tree where the canvas scrolls underneath. */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
           <span className="font-semibold tracking-tight">SkillSphere</span>
 
@@ -40,10 +40,10 @@ export function AppShell() {
                 end={to === '/'}
                 className={({ isActive }) =>
                   cn(
-                    'relative flex items-center gap-2 rounded-app px-3 py-1.5 text-sm transition-colors',
+                    'relative flex items-center gap-2 rounded-sq px-3 py-1.5 text-sm transition-colors',
                     isActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
+                      ? 'text-fg'
+                      : 'text-fg-muted hover:text-fg',
                   )
                 }
               >
@@ -58,7 +58,7 @@ export function AppShell() {
                     {isActive && (
                       <motion.span
                         layoutId="nav-active"
-                        className="absolute inset-0 -z-10 rounded-app bg-muted"
+                        className="absolute inset-0 -z-10 rounded-sq bg-bg-sunken"
                         transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       />
                     )}
@@ -79,7 +79,7 @@ export function AppShell() {
             </Button>
 
             <div
-              className="grid size-8 place-items-center rounded-full bg-primary-subtle text-xs font-medium text-primary"
+              className="grid size-8 place-items-center rounded-full bg-bg-sunken text-xs font-medium text-accent"
               title={user?.email}
             >
               {initials}

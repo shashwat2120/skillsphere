@@ -52,6 +52,14 @@ public class SkillController {
         return skillService.listForLearner(CurrentUser.requireId(), masteryThreshold);
     }
 
+    @GetMapping("/graph")
+    @Operation(summary = "Nodes and edges for the skill graph view",
+            description = "One call rather than two: fetching nodes and edges separately makes "
+                    + "the client paint a graph with no connections for a frame.")
+    public SkillDtos.LearnerGraphResponse graph() {
+        return skillService.graphForLearner(CurrentUser.requireId(), masteryThreshold);
+    }
+
     @GetMapping("/ready")
     @Operation(summary = "What this learner can start right now",
             description = "Not stored anywhere — derived from the graph and the learner's mastery. "

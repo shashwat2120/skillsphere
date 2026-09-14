@@ -28,7 +28,7 @@ export function DashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           Welcome back, {firstName}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-fg-muted">
           {/* The product claim, stated plainly on the first screen. */}
           Your route is worked out from what you have proven, not from a fixed
           course order.
@@ -38,7 +38,7 @@ export function DashboardPage() {
       {/* Email verification is surfaced, not silently ignored — an unverified
           account will hit a wall later, and finding out then is worse. */}
       {user && !user.emailVerified && (
-        <div className="rounded-app border border-warning/30 bg-warning-subtle px-4 py-3 text-sm">
+        <div className="rounded-sq border border-decaying/30 bg-decaying-bg px-4 py-3 text-sm">
           Confirm your email address to unlock verified evidence on your passport.
         </div>
       )}
@@ -46,7 +46,7 @@ export function DashboardPage() {
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-medium">
-            <Sparkles className="size-4 text-primary" />
+            <Sparkles className="size-4 text-accent" />
             Ready to start
           </h2>
           <Button asChild variant="ghost" size="sm">
@@ -59,7 +59,7 @@ export function DashboardPage() {
         {isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-20 rounded-app" />
+              <Skeleton key={i} className="h-20 rounded-sq" />
             ))}
           </div>
         ) : ready?.length ? (
@@ -70,21 +70,21 @@ export function DashboardPage() {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.24) }}
-                className="rounded-app border border-border bg-surface p-4 transition-colors hover:border-primary/40"
+                className="rounded-sq border border-line bg-surface p-4 transition-colors hover:border-accent/40"
               >
-                <Target className="size-4 text-primary" />
+                <Target className="size-4 text-accent" />
                 <h3 className="mt-2 text-sm font-medium">{skill.name}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-0.5 text-xs text-fg-muted">
                   Prerequisites met
                 </p>
               </motion.div>
             ))}
           </div>
         ) : (
-          <div className="rounded-app border border-dashed border-border py-12 text-center">
-            <GitBranch className="mx-auto size-5 text-muted-foreground" />
+          <div className="rounded-sq border border-dashed border-line py-12 text-center">
+            <GitBranch className="mx-auto size-5 text-fg-muted" />
             <p className="mt-2 text-sm font-medium">Nothing open yet</p>
-            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            <p className="mx-auto mt-1 max-w-sm text-sm text-fg-muted">
               Once an administrator adds skills to the graph, everything you can
               start appears here — worked out from your own mastery.
             </p>
