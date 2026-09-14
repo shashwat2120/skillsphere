@@ -34,7 +34,11 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration
+    # Two locations: schema ships everywhere, demo content does not.
+    # A production profile lists only db/migration, so a fictional Java course
+    # can never appear on a real deployment and nobody has to remember a
+    # 'delete the demo data' step.
+    locations: classpath:db/migration,classpath:db/seed
     baseline-on-migrate: false
     validate-on-migrate: true
 
