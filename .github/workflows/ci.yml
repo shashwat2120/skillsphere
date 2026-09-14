@@ -1,0 +1,69 @@
+name: CI
+
+# Runs on every push and pull request against main. Nothing here deploys
+# anywhere — per the project's zero-budget constraint, "CI/CD" for a student
+# project means the free part (GitHub Actions minutes on a public/private
+# repo) proving the build and test suite stay green, not a paid hosting
+# target. Running the stack locally with Docker Compose remains how this
+# project is actually demoed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # IntegrationTest starts real Postgres and Redis via Testcontainers
+      # rather than mocking them — see its class comment for why H2 doesn't
+      # count as testing this schema. ubuntu-latest ships Docker already
+      # running, so no service containers need declaring here.
+      - name: Run tests
+        run: ./mvnw -B test
+
+      - name: Upload surefire reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports
+
+  frontend:
+    name: Frontend build and typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # `npm run build` is `tsc -b && vite build` — the type-check and the
+      # build are one step here rather than two, since the build already
+      # fails on a type error and a separate tsc pass would just repeat it.
+      - name: Type-check and build
+        run: npm run build

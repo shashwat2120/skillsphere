@@ -1,5 +1,6 @@
 package com.skillsphere.skill.internal;
 
+import com.skillsphere.shared.audit.AuditLogger;
 import com.skillsphere.shared.error.ConflictException;
 import com.skillsphere.shared.error.NotFoundException;
 import com.skillsphere.skill.domain.LearnerSkillState;
@@ -14,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -35,6 +38,8 @@ public class SkillService {
     private final SkillPrerequisiteRepository prerequisites;
     private final LearnerSkillStateRepository learnerStates;
     private final SkillGraphService graph;
+    private final AuditLogger auditLogger;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // -----------------------------------------------------------------
     // Catalogue
@@ -53,13 +58,16 @@ public class SkillService {
                 request.estMinutes(), request.decayRate());
 
         log.info("Created skill '{}' ({})", skill.getName(), skill.getSlug());
-        return toResponse(skills.save(skill));
+        Skill saved = skills.save(skill);
+        auditLogger.record("SKILL_CREATED", "SKILL", saved.getId(), null, skillJson(saved), null);
+        return toResponse(saved);
     }
 
     @Transactional
     public SkillDtos.SkillResponse update(Long id, SkillDtos.UpdateSkillRequest request) {
         Skill skill = skills.findById(id)
                 .orElseThrow(() -> new NotFoundException("Skill", id));
+        String before = skillJson(skill);
 
         // The slug is deliberately absent from the update request. It is a
         // stable public identifier: evidence rows, shared passport links and
@@ -73,6 +81,7 @@ public class SkillService {
         if (request.active() != null) {
             skill.setActive(request.active());
         }
+        auditLogger.record("SKILL_UPDATED", "SKILL", id, before, skillJson(skill), null);
         return toResponse(skill);
     }
 
@@ -89,8 +98,10 @@ public class SkillService {
     public void retire(Long id) {
         Skill skill = skills.findById(id)
                 .orElseThrow(() -> new NotFoundException("Skill", id));
+        String before = skillJson(skill);
         skill.setActive(false);
         log.info("Retired skill '{}'", skill.getName());
+        auditLogger.record("SKILL_RETIRED", "SKILL", id, before, skillJson(skill), null);
     }
 
     @Transactional(readOnly = true)
@@ -202,6 +213,16 @@ public class SkillService {
         if (decayRate != null) {
             skill.setDecayRate(decayRate);
         }
+    }
+
+    private String skillJson(Skill skill) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("name", skill.getName());
+        node.put("description", skill.getDescription());
+        node.put("levelBand", skill.getLevelBand() == null ? null : skill.getLevelBand().name());
+        node.put("estMinutes", skill.getEstMinutes());
+        node.put("active", skill.isActive());
+        return node.toString();
     }
 
     private SkillDtos.SkillResponse toResponse(Skill skill) {

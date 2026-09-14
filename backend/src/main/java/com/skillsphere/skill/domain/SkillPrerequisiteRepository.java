@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Graph traversal over the prerequisite edges.
@@ -31,6 +32,8 @@ public interface SkillPrerequisiteRepository extends JpaRepository<SkillPrerequi
     List<SkillPrerequisite> findByPrerequisiteSkillId(Long prerequisiteSkillId);
 
     boolean existsBySkillIdAndPrerequisiteSkillId(Long skillId, Long prerequisiteSkillId);
+
+    Optional<SkillPrerequisite> findBySkillIdAndPrerequisiteSkillId(Long skillId, Long prerequisiteSkillId);
 
     void deleteBySkillIdAndPrerequisiteSkillId(Long skillId, Long prerequisiteSkillId);
 

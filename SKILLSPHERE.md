@@ -1021,6 +1021,56 @@ Story arc: **diagnose → personalise → explain → intervene → verify → e
 
 Ninety seconds, solving a problem every person in that room is personally dealing with.
 
+### Rehearsal runbook (as actually built)
+
+The beat sheet above is the pitch. This is the literal sequence to rehearse
+against the real running app, written after every phase below it was
+verified live rather than planned on paper.
+
+**Before the room — one-time setup:**
+
+1. `docker compose up -d` (Postgres, Redis, Mailpit), then start the backend
+   (`./mvnw spring-boot:run` — on Windows add
+   `-Dspring-boot.run.jvmArguments="-Djdk.net.unixdomain.tmpdir=C:\temp\unixsock"`,
+   see §18) and the frontend (`npm run dev --prefix frontend`).
+2. The bootstrap administrator (`admin@skillsphere.local`) and any seed
+   learner accounts get a **randomly generated password printed once, to the
+   backend's own console log, the first time the app ever starts** — not
+   written anywhere else. If that log is gone, there is no way to recover it;
+   use the forgot-password flow instead: request a reset for the account,
+   open Mailpit at `http://localhost:8025` (it catches every outbound email
+   in dev rather than sending it), and open the reset link from there. Do
+   this once per demo account a day or two before presenting, not live in
+   the room.
+3. Have two browser windows ready — one signed in as the presenter/learner,
+   one as a second "learner" for the diverging-paths beat, and know which
+   device will be the projector.
+
+**The walkthrough:**
+
+| Beat | Route | What actually happens |
+|---|---|---|
+| Arena | `/arenas` → host a round → project the join code | Learners join at `/arena/join/:code` from their own phones with no account at all — `StompAuthChannelInterceptor` accepts a guest CONNECT and only attaches identity when a token is presented, so "everyone take out your phone" needs nothing pre-registered |
+| Diagnostic | `/diagnostics/:skillId` for two different accounts | Elo/IRT/BKT pick different next items per learner from the first wrong answer onward — the divergence is real adaptive selection, not scripted |
+| Explainability | Career page's path view, or a misconception callout on a wrong answer | The reasoning was written once at generation/grading time and is being displayed, not invented on click |
+| Intervention | Answer the same skill wrong 3 times as a test account, then `/instructor/analytics` as an instructor | The at-risk queue needs a manual or scheduled recompute (§ Phase 9) — click **Recompute** rather than waiting for the 5-minute schedule during a demo |
+| Verification | `/projects` → submit → the AI viva | Needs Ollama running locally with `llama3.2:3b` pulled — start it well before the room, the first generation call is the slow one |
+| Passport | `/passport`, then the public share link | The public view needs no login at all — open it in an incognito window to prove that |
+| Admin | `/admin` as `admin@skillsphere.local` | Not part of the pitch beats above, but worth a mention if a reviewer asks "who moderates this" — every suspend/approve action is on the audit log tab immediately, with a reason and before/after state |
+
+**What's real vs. simplified in this build** — say this plainly if asked,
+rather than let a reviewer discover it:
+- The leaderboard reads from Postgres on each request, not a Redis sorted
+  set the original schema comments anticipated — fine at demo scale, would
+  need to change before a real live-traffic deployment.
+- Confusion detection is an in-memory streak counter, not the windowed SQL
+  scan the schema anticipates — arena turns are already strictly paced, so
+  the simpler signal is equivalent here.
+- The at-risk queue's "mark as followed up" doesn't yet survive the next
+  scheduled rescore — say so rather than let a reviewer catch it.
+- The join flow shows a join code and a copyable link; there is no rendered
+  QR image, so "scan the QR" is not literally available today.
+
 ---
 
 ## 17. Credibility Rules

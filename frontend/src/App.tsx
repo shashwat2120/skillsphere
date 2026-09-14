@@ -17,6 +17,7 @@ import { ArenasPage } from '@/pages/ArenasPage'
 import { ArenaHostPage } from '@/pages/ArenaHostPage'
 import { ArenaPlayPage } from '@/pages/ArenaPlayPage'
 import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
+import { AdminPage } from '@/pages/AdminPage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -67,6 +68,12 @@ function RequireInstructor({ children }: { children: React.ReactNode }) {
   const user = useAuth((state) => state.user)
   const isInstructor = hasRole(user, 'INSTRUCTOR') || hasRole(user, 'ADMIN')
   return isInstructor ? <>{children}</> : <Navigate to="/" replace />
+}
+
+/** Gate for the admin surface — account moderation and the audit trail. */
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const user = useAuth((state) => state.user)
+  return hasRole(user, 'ADMIN') ? <>{children}</> : <Navigate to="/" replace />
 }
 
 export default function App() {
@@ -126,6 +133,14 @@ export default function App() {
               <RequireInstructor>
                 <AnalyticsDashboardPage />
               </RequireInstructor>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminPage />
+              </RequireAdmin>
             }
           />
         </Route>

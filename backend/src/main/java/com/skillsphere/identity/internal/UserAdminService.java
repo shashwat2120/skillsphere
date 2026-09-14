@@ -8,6 +8,7 @@ import com.skillsphere.identity.domain.UserRepository;
 import com.skillsphere.identity.events.InstructorApproved;
 import com.skillsphere.identity.events.AccountSuspended;
 import com.skillsphere.identity.web.AdminUserDtos;
+import com.skillsphere.shared.audit.AuditLogger;
 import com.skillsphere.shared.error.NotFoundException;
 import com.skillsphere.shared.error.ValidationException;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 
@@ -35,6 +38,8 @@ public class UserAdminService {
     private final UserRepository users;
     private final SessionRevoker sessionRevoker;
     private final ApplicationEventPublisher events;
+    private final AuditLogger auditLogger;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional(readOnly = true)
     public List<AdminUserDtos.PendingInstructor> listPendingInstructors() {
@@ -77,6 +82,8 @@ public class UserAdminService {
 
         user.setStatus(AccountStatus.ACTIVE);
         log.info("Instructor {} approved by admin {}", userId, approvedByAdminId);
+        auditLogger.record("INSTRUCTOR_APPROVED", "USER", userId,
+                statusJson(AccountStatus.PENDING), statusJson(AccountStatus.ACTIVE), null);
 
         events.publishEvent(new InstructorApproved(
                 user.getId(), user.getEmail(), user.getFullName()));
@@ -95,6 +102,8 @@ public class UserAdminService {
         // applicant who reapplies should not silently become a second account.
         user.setStatus(AccountStatus.SUSPENDED);
         log.info("Instructor application {} rejected by admin {}: {}", userId, adminId, reason);
+        auditLogger.record("INSTRUCTOR_REJECTED", "USER", userId,
+                statusJson(AccountStatus.PENDING), statusJson(AccountStatus.SUSPENDED), reason);
     }
 
     /**
@@ -119,10 +128,13 @@ public class UserAdminService {
                     "Administrator accounts cannot be suspended through the API.");
         }
 
+        AccountStatus previousStatus = user.getStatus();
         user.setStatus(AccountStatus.SUSPENDED);
         sessionRevoker.revokeAllSessions(userId, RefreshToken.RevocationReason.ADMIN_REVOKED);
 
         log.warn("Account {} suspended by admin {}: {}", userId, adminId, reason);
+        auditLogger.record("USER_SUSPENDED", "USER", userId,
+                statusJson(previousStatus), statusJson(AccountStatus.SUSPENDED), reason);
         events.publishEvent(new AccountSuspended(user.getId(), user.getEmail(), reason));
     }
 
@@ -132,6 +144,14 @@ public class UserAdminService {
                 .orElseThrow(() -> new NotFoundException("User", userId));
         user.setStatus(AccountStatus.ACTIVE);
         log.info("Account {} reactivated by admin {}", userId, adminId);
+        auditLogger.record("USER_REACTIVATED", "USER", userId,
+                statusJson(AccountStatus.SUSPENDED), statusJson(AccountStatus.ACTIVE), null);
+    }
+
+    private String statusJson(AccountStatus status) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("status", status.name());
+        return node.toString();
     }
 
     @Transactional(readOnly = true)

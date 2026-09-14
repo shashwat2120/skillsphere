@@ -1,5 +1,6 @@
 package com.skillsphere.skill.internal;
 
+import com.skillsphere.shared.audit.AuditLogger;
 import com.skillsphere.shared.error.ConflictException;
 import com.skillsphere.shared.error.NotFoundException;
 import com.skillsphere.shared.error.ValidationException;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -48,6 +51,8 @@ public class SkillGraphService {
     private final SkillRepository skills;
     private final SkillPrerequisiteRepository prerequisites;
     private final LearnerSkillStateRepository learnerStates;
+    private final AuditLogger auditLogger;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // -----------------------------------------------------------------
     // Edges
@@ -92,15 +97,27 @@ public class SkillGraphService {
         SkillPrerequisite edge = new SkillPrerequisite(skill, prerequisite, strength);
         log.info("Added prerequisite: '{}' requires '{}' (strength {})",
                 skill.getName(), prerequisite.getName(), strength);
-        return prerequisites.save(edge);
+        SkillPrerequisite saved = prerequisites.save(edge);
+        auditLogger.record("SKILL_PREREQUISITE_ADDED", "SKILL", skillId, null, edgeJson(saved), null);
+        return saved;
     }
 
     @Transactional
     public void removePrerequisite(Long skillId, Long prerequisiteId) {
-        if (!prerequisites.existsBySkillIdAndPrerequisiteSkillId(skillId, prerequisiteId)) {
-            throw new NotFoundException("Prerequisite edge not found.");
-        }
+        SkillPrerequisite edge = prerequisites.findBySkillIdAndPrerequisiteSkillId(skillId, prerequisiteId)
+                .orElseThrow(() -> new NotFoundException("Prerequisite edge not found."));
         prerequisites.deleteBySkillIdAndPrerequisiteSkillId(skillId, prerequisiteId);
+        auditLogger.record("SKILL_PREREQUISITE_REMOVED", "SKILL", skillId, edgeJson(edge), null, null);
+    }
+
+    private String edgeJson(SkillPrerequisite edge) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("skillId", edge.getSkill().getId());
+        node.put("skillName", edge.getSkill().getName());
+        node.put("prerequisiteSkillId", edge.getPrerequisiteSkill().getId());
+        node.put("prerequisiteSkillName", edge.getPrerequisiteSkill().getName());
+        node.put("strength", edge.getStrength());
+        return node.toString();
     }
 
     // -----------------------------------------------------------------

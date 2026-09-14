@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Award,
   BarChart3,
@@ -7,10 +8,13 @@ import {
   GitBranch,
   LayoutDashboard,
   LogOut,
+  Menu,
   Moon,
+  ShieldCheck,
   Sun,
   Swords,
   Target,
+  X,
 } from 'lucide-react'
 import { hasRole, useAuth } from '@/stores/auth'
 import { useTheme } from '@/hooks/useTheme'
@@ -30,11 +34,15 @@ export function AppShell() {
   const { user, logout } = useAuth()
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const isInstructor = hasRole(user, 'INSTRUCTOR') || hasRole(user, 'ADMIN')
-  const nav = isInstructor
-    ? [...BASE_NAV, { to: '/instructor/analytics', label: 'Analytics', icon: BarChart3 }]
-    : BASE_NAV
+  const isAdmin = hasRole(user, 'ADMIN')
+  const nav = [
+    ...BASE_NAV,
+    ...(isInstructor ? [{ to: '/instructor/analytics', label: 'Analytics', icon: BarChart3 }] : []),
+    ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: ShieldCheck }] : []),
+  ]
 
   const initials = (user?.fullName ?? '?')
     .split(' ')
@@ -52,7 +60,11 @@ export function AppShell() {
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
           <span className="font-semibold tracking-tight">SkillSphere</span>
 
-          <nav className="flex items-center gap-1">
+          {/* Collapses below lg: eight items plus the account controls no
+              longer fit one row once Analytics and Admin join the base six,
+              and a wrapped or overflowing nav reads as broken rather than
+              busy. The hamburger panel below carries the same links. */}
+          <nav className="hidden items-center gap-1 lg:flex">
             {nav.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
@@ -116,8 +128,51 @@ export function AppShell() {
             >
               <LogOut className="size-4" />
             </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? <X className="size-4" /> : <Menu className="size-4" />}
+            </Button>
           </div>
         </div>
+
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.nav
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="overflow-hidden border-t border-line bg-bg lg:hidden"
+            >
+              <div className="flex flex-col gap-0.5 px-4 py-2">
+                {nav.map(({ to, label, icon: Icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === '/'}
+                    onClick={() => setMenuOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-2.5 rounded-sq px-3 py-2.5 text-sm transition-colors',
+                        isActive ? 'bg-bg-sunken text-fg' : 'text-fg-muted hover:text-fg',
+                      )
+                    }
+                  >
+                    <Icon className="size-4" />
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            </motion.nav>
+          )}
+        </AnimatePresence>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">

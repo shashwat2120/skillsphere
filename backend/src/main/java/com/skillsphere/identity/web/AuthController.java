@@ -2,6 +2,7 @@ package com.skillsphere.identity.web;
 
 import com.skillsphere.identity.internal.AuthService;
 import com.skillsphere.identity.internal.PasswordResetService;
+import com.skillsphere.shared.security.ClientIp;
 import com.skillsphere.shared.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -77,7 +78,7 @@ public class AuthController {
             HttpServletRequest servletRequest) {
 
         AuthService.LoginResult result = authService.login(
-                request, clientIp(servletRequest), servletRequest.getHeader(HttpHeaders.USER_AGENT));
+                request, ClientIp.from(servletRequest), servletRequest.getHeader(HttpHeaders.USER_AGENT));
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken(), result.refreshTtl()).toString())
@@ -97,7 +98,7 @@ public class AuthController {
         }
 
         AuthService.LoginResult result = authService.refresh(
-                refreshToken, clientIp(servletRequest), servletRequest.getHeader(HttpHeaders.USER_AGENT));
+                refreshToken, ClientIp.from(servletRequest), servletRequest.getHeader(HttpHeaders.USER_AGENT));
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken(), result.refreshTtl()).toString())
@@ -191,21 +192,5 @@ public class AuthController {
                 .path(REFRESH_PATH)
                 .maxAge(0)
                 .build();
-    }
-
-    /**
-     * Best-effort client address.
-     *
-     * <p>{@code X-Forwarded-For} is client-controlled and trivially spoofed, so
-     * it is used for diagnostics and the session list only. Nothing security
-     * relevant — rate limiting in particular — may key on it without a trusted
-     * proxy configuration establishing which hops can be believed.
-     */
-    private String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }
