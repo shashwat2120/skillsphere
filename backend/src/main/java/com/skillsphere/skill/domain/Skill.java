@@ -1,6 +1,7 @@
 package com.skillsphere.skill.domain;
 
 import com.skillsphere.shared.domain.AuditableEntity;
+import com.skillsphere.shared.domain.LevelBand;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

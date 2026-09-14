@@ -165,7 +165,7 @@ public class SkillService {
 
     // -----------------------------------------------------------------
 
-    private void applyOptional(Skill skill, Long categoryId, com.skillsphere.skill.domain.LevelBand band,
+    private void applyOptional(Skill skill, Long categoryId, com.skillsphere.shared.domain.LevelBand band,
                                Integer estMinutes, BigDecimal decayRate) {
         if (categoryId != null) {
             SkillCategory category = categories.findById(categoryId)

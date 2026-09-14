@@ -1,6 +1,6 @@
 package com.skillsphere.skill.web;
 
-import com.skillsphere.skill.domain.LevelBand;
+import com.skillsphere.shared.domain.LevelBand;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
