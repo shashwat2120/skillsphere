@@ -45,4 +45,29 @@ public interface SkillLookup {
     Map<Long, String> namesOf(Collection<Long> skillIds);
 
     List<SkillInfo> findAllActive();
+
+    /**
+     * What this learner currently knows about each of these skills.
+     *
+     * <p>Career needs mastery for a handful of skills at once — a role's
+     * requirements — to run gap analysis. Handing out {@code LearnerSkillState}
+     * would leak a mapped JPA entity (and its {@code Skill} association) across
+     * the boundary; this returns the flattened numbers a caller can actually use.
+     * A skill with no row yet (never attempted) is simply absent from the map,
+     * which callers should treat as zero mastery.
+     */
+    Map<Long, MasteryInfo> masteryOf(Long userId, Collection<Long> skillIds);
+
+    record MasteryInfo(double masteryProbability, double abilityTheta, int responseCount) {
+    }
+
+    /**
+     * The hard (gating) prerequisites of a skill, by id.
+     *
+     * <p>Enough for a caller to topologically order a set of skills without the
+     * skill module handing over its graph-traversal internals. Career uses this
+     * to sequence a generated path; nothing here reveals soft/advisory edges,
+     * which are not gates and are not this caller's concern.
+     */
+    List<Long> hardPrerequisitesOf(Long skillId);
 }

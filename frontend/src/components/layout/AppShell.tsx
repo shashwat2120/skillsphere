@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { GitBranch, LayoutDashboard, LogOut, Moon, Sun } from 'lucide-react'
+import { GitBranch, LayoutDashboard, LogOut, Moon, Sun, Target } from 'lucide-react'
 import { useAuth } from '@/stores/auth'
 import { useTheme } from '@/hooks/useTheme'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/skills', label: 'Skill tree', icon: GitBranch },
+  { to: '/career', label: 'Career', icon: Target },
 ]
 
 export function AppShell() {

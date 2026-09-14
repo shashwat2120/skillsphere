@@ -1,7 +1,9 @@
 package com.skillsphere.skill.internal;
 
 import com.skillsphere.skill.SkillLookup;
+import com.skillsphere.skill.domain.LearnerSkillStateRepository;
 import com.skillsphere.skill.domain.Skill;
+import com.skillsphere.skill.domain.SkillPrerequisiteRepository;
 import com.skillsphere.skill.domain.SkillRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 public class SkillLookupService implements SkillLookup {
 
     private final SkillRepository skills;
+    private final LearnerSkillStateRepository learnerSkillStates;
+    private final SkillPrerequisiteRepository prerequisites;
 
     @Override
     @Transactional(readOnly = true)
@@ -46,6 +50,27 @@ public class SkillLookupService implements SkillLookup {
     @Transactional(readOnly = true)
     public List<SkillInfo> findAllActive() {
         return skills.findByActiveTrueOrderByNameAsc().stream().map(this::toInfo).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, MasteryInfo> masteryOf(Long userId, Collection<Long> skillIds) {
+        if (skillIds.isEmpty()) {
+            return Map.of();
+        }
+        return learnerSkillStates.findByUserIdAndSkillIds(userId, List.copyOf(skillIds)).stream()
+                .collect(Collectors.toMap(
+                        state -> state.getSkill().getId(),
+                        state -> new MasteryInfo(
+                                state.getMasteryProbability().doubleValue(),
+                                state.getAbilityTheta().doubleValue(),
+                                state.getAttemptsCount())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> hardPrerequisitesOf(Long skillId) {
+        return prerequisites.findHardPrerequisiteIds(skillId);
     }
 
     private SkillInfo toInfo(Skill skill) {

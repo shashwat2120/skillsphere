@@ -8,6 +8,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SkillTreePage } from '@/pages/SkillTreePage'
 import { DiagnosticPage } from '@/pages/DiagnosticPage'
+import { CareerPage } from '@/pages/CareerPage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/skills" element={<SkillTreePage />} />
           <Route path="/diagnostics/:skillId" element={<DiagnosticPage />} />
+          <Route path="/career" element={<CareerPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
