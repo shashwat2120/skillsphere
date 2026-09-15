@@ -21,6 +21,7 @@ import { ArenaHostPage } from '@/pages/ArenaHostPage'
 import { ArenaPlayPage } from '@/pages/ArenaPlayPage'
 import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { InstructorStudioPage } from '@/pages/InstructorStudioPage'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -143,6 +144,14 @@ export default function App() {
             element={
               <RequireInstructor>
                 <AnalyticsDashboardPage />
+              </RequireInstructor>
+            }
+          />
+          <Route
+            path="/instructor/studio"
+            element={
+              <RequireInstructor>
+                <InstructorStudioPage />
               </RequireInstructor>
             }
           />

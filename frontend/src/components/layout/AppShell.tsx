@@ -6,6 +6,7 @@ import {
   BarChart3,
   FolderGit2,
   GitBranch,
+  GraduationCap,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -40,7 +41,12 @@ export function AppShell() {
   const isAdmin = hasRole(user, 'ADMIN')
   const nav = [
     ...BASE_NAV,
-    ...(isInstructor ? [{ to: '/instructor/analytics', label: 'Analytics', icon: BarChart3 }] : []),
+    ...(isInstructor
+      ? [
+          { to: '/instructor/studio', label: 'Studio', icon: GraduationCap },
+          { to: '/instructor/analytics', label: 'Analytics', icon: BarChart3 },
+        ]
+      : []),
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: ShieldCheck }] : []),
   ]
 

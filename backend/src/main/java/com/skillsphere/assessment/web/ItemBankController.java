@@ -59,7 +59,9 @@ public class ItemBankController {
     }
 
     @GetMapping
-    @Operation(summary = "Active items for a skill")
+    @Operation(summary = "Every item for a skill, any status",
+            description = "The authoring view — drafts included, so a just-created item stays "
+                    + "reachable until it is activated.")
     public List<ItemDtos.ItemResponse> listBySkill(@RequestParam Long skillId) {
         return itemBank.listBySkill(skillId);
     }

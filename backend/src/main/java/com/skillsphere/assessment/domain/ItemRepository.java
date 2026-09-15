@@ -10,6 +10,8 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
 
     List<Item> findBySkillIdAndStatus(Long skillId, ItemStatus status);
 
+    List<Item> findBySkillIdOrderByIdDesc(Long skillId);
+
     List<Item> findByAuthorId(Long authorId);
 
     /**

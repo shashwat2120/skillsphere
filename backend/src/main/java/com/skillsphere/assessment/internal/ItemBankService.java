@@ -153,9 +153,20 @@ public class ItemBankService {
         }
     }
 
+    /**
+     * Every item for a skill, any status, newest first.
+     *
+     * <p>Deliberately not filtered to {@code ACTIVE}. This is the authoring
+     * view — the one place an instructor manages their own bank — and a
+     * just-created {@code DRAFT} item that vanished from its own list until
+     * activated would be a dead end with no way back to it. The learner-
+     * facing selection path ({@link ItemRepository#findUnseenBySkill}) is a
+     * separate query and is unaffected: it was always scoped to ACTIVE and
+     * still is.
+     */
     @Transactional(readOnly = true)
     public List<ItemDtos.ItemResponse> listBySkill(Long skillId) {
-        return items.findBySkillIdAndStatus(skillId, ItemStatus.ACTIVE).stream()
+        return items.findBySkillIdOrderByIdDesc(skillId).stream()
                 .map(this::toResponse).toList();
     }
 
