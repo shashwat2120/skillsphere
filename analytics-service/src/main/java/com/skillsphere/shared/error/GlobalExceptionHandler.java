@@ -8,9 +8,11 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
 import java.time.Instant;
@@ -96,6 +98,27 @@ public class GlobalExceptionHandler {
         log.info("Optimistic lock conflict on {}", request.getRequestURI());
         return problem(HttpStatus.CONFLICT, "CONCURRENT_MODIFICATION",
                 "This record changed while you were working on it. Please retry.", request);
+    }
+
+    /**
+     * A path that matches no controller and no static resource. Without this
+     * handler it falls through to {@link #handleUnexpected}, which is wrong
+     * twice over: a caller sees a 500 (implying the server is broken) for
+     * what is simply a URL that does not exist, and every such request gets
+     * logged as an unhandled-exception error — noise that would drown out a
+     * real fault on the same endpoint.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ProblemDetail handleNotFound(NoResourceFoundException ex, HttpServletRequest request) {
+        return problem(HttpStatus.NOT_FOUND, "NOT_FOUND",
+                "No such endpoint.", request);
+    }
+
+    /** A real endpoint, called with a method it does not support — a client bug, not a server fault. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",
+                "This endpoint does not support " + ex.getMethod() + ".", request);
     }
 
     @ExceptionHandler(Exception.class)
