@@ -85,7 +85,50 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: skillsphere-prometheus
+    restart: unless-stopped
+    # Every app process runs on the host (not in this Compose network), so
+    # the scrape config points at host.docker.internal — Docker Desktop's
+    # DNS name for the host machine — rather than a container hostname.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: skillsphere-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      # Zero-friction demo credentials — this stack only ever runs on
+      # localhost for a sprint demo, never deployed with real data behind it.
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+
 volumes:
   postgres_data:
   redis_data:
   redpanda_data:
+  prometheus_data:
+  grafana_data:

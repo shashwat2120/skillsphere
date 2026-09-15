@@ -11,7 +11,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,circuitbreakers,circuitbreakerevents
+        include: health,info,circuitbreakers,circuitbreakerevents,prometheus
   health:
     circuitbreakers:
       enabled: true
+  metrics:
+    tags:
+      # Every metric scraped from every service carries this label, so one
+      # Prometheus instance scraping 9+ processes can still be split apart
+      # per-service in Grafana instead of blending everyone's request
+      # counts and latencies into one undifferentiated series.
+      application: ${spring.application.name}

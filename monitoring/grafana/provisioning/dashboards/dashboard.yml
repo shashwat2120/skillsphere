@@ -1,0 +1,14 @@
+# Tells Grafana to auto-load every dashboard JSON file dropped into
+# /var/lib/grafana/dashboards (mounted from monitoring/grafana/dashboards)
+# on startup, instead of requiring a manual import through the UI.
+apiVersion: 1
+
+providers:
+  - name: SkillSphere
+    orgId: 1
+    folder: SkillSphere
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards

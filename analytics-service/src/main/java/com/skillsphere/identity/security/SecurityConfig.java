@@ -60,6 +60,14 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**").permitAll()
+                        // Scraped by Prometheus (see monitoring/prometheus/prometheus.yml), which
+                        // only reaches this port from inside the Docker Desktop host bridge on
+                        // this dev machine -- never from the public internet. Safe specifically
+                        // because management.endpoints.web.exposure.include already curates
+                        // what exists under /actuator to health, info, circuitbreakers and this
+                        // endpoint; nothing sensitive like env, heapdump or beans is ever exposed
+                        // for this rule to leak. Everything else under /actuator stays ADMIN-only.
+                        .requestMatchers("/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                             .permitAll()
 
