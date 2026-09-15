@@ -138,9 +138,6 @@ skillsphere:
       # credentials, and an enumerated list means a bad deployment fails loudly
       # instead of quietly accepting requests from any origin.
       allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
-  confusion:
-    failure-threshold: 3
-    window-minutes: 30
 
 # Sprint 6: registers this instance with Eureka so the gateway (and, later,
 # any extracted service) can find it by name instead of a fixed host:port.
