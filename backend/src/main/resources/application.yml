@@ -61,6 +61,16 @@ spring:
     locations: classpath:db/migration,classpath:db/seed
     baseline-on-migrate: false
     validate-on-migrate: true
+    # V899 (the skill graph) was written and added after V908 had already
+    # run on every developer database this project has — the skills it
+    # seeds existed only as hand-created rows until this session, so V899's
+    # version number reflects where it logically belongs (before every seed
+    # file that references a skill by slug), not when it was written. A
+    # fresh clone never hits this — Flyway applies every migration in
+    # version order from empty — but any database that already migrated
+    # past V899's version needs Flyway told explicitly that a lower-
+    # numbered migration arriving late is expected, not a corruption.
+    out-of-order: true
 
   data:
     redis:
