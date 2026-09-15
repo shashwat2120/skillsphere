@@ -1,5 +1,6 @@
 package com.skillsphere.verification.internal;
 
+import com.skillsphere.shared.error.ServiceUnavailableException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
@@ -46,10 +47,19 @@ public class OllamaClient {
                 .build();
     }
 
-    /** Thrown when Ollama is unreachable or returns something unusable. */
-    public static class OllamaUnavailableException extends RuntimeException {
+    /**
+     * Thrown when Ollama is unreachable or returns something unusable.
+     *
+     * <p>Extends {@link ServiceUnavailableException} rather than a plain
+     * {@code RuntimeException} so {@link com.skillsphere.shared.error.GlobalExceptionHandler}
+     * routes it through the {@code ApiException} branch and this message —
+     * "is Ollama running?" — actually reaches whoever is presenting a demo,
+     * instead of being swallowed into a generic "something went wrong" and
+     * logged where only the developer can see it.
+     */
+    public static class OllamaUnavailableException extends ServiceUnavailableException {
         public OllamaUnavailableException(String message, Throwable cause) {
-            super(message, cause);
+            super("OLLAMA_UNAVAILABLE", message, cause);
         }
     }
 
