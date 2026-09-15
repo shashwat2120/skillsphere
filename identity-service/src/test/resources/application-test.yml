@@ -1,0 +1,67 @@
+# Test profile.
+#
+# Deliberately does NOT override the datasource: Testcontainers supplies it via
+# @ServiceConnection, and hard-coding a URL here would quietly point the suite at
+# a developer's local database and start mutating real data.
+spring:
+  jpa:
+    hibernate:
+      # NOT validate, unlike the monolith's own test profile. The monolith
+      # tests against Flyway-migrated schema because it owns the schema; this
+      # service does not (see pom.xml and application.yml) — production runs
+      # ddl-auto: validate against the monolith's Flyway output, but a fresh
+      # Testcontainers database has no Flyway to run here. create-drop is a
+      # test-only exception: it proves the JPA entities are internally
+      # consistent, at the cost of not catching drift against the shared
+      # schema the way the monolith's own suite still does for every table.
+      # Once identity gets its own migration set (see pom.xml), this goes
+      # back to validate and picks up real drift detection.
+      ddl-auto: create-drop
+    # data.sql seeds the four roles (see that file) and must run after
+    # Hibernate has created the tables, not before — the default ordering is
+    # the other way round.
+    defer-datasource-initialization: true
+  sql:
+    init:
+      # Spring Boot only auto-runs data.sql against an embedded database by
+      # default; this is a real Testcontainers Postgres, so it has to be told.
+      mode: always
+
+# One skillsphere block, deliberately. YAML has no merge semantics for repeated
+# top-level keys — a second block silently replaces the first rather than adding
+# to it, so appending login-limits separately would have wiped out the JWT
+# settings above and left the suite failing on a missing secret.
+skillsphere:
+  security:
+    jwt:
+      secret: test-only-secret-value-at-least-32-bytes-long-for-hs256
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+      issuer: skillsphere-test
+    cors:
+      allowed-origins: http://localhost:5173
+    login-limits:
+      # Widened for the suite: every test runs from the same loopback address,
+      # so production's per-IP cap would have tests throttling one another and
+      # failing based on execution order.
+      ip-attempts: 10000
+      ip-window: 1m
+      # Kept small so lockout tests can actually reach the threshold without
+      # hammering Argon2id — each hash costs 64 MiB and roughly 250ms.
+      account-failures: 3
+      account-window: 15m
+
+management:
+  health:
+    mail:
+      # Off because the suite replaces JavaMailSender with a mock, and the mail
+      # health contributor then has no real sender to wrap and fails the whole
+      # context with "'beans' must not be empty". The contributor is not under
+      # test here — actual delivery is verified separately against Mailpit.
+      enabled: false
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN
+    org.springframework.modulith: WARN
