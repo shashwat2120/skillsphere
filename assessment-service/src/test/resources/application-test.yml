@@ -1,0 +1,36 @@
+# Test profile.
+#
+# Deliberately does NOT override the datasource: Testcontainers supplies it via
+# @ServiceConnection, and hard-coding a URL here would quietly point the suite at
+# a developer's local database and start mutating real data.
+spring:
+  jpa:
+    hibernate:
+      # Real schema, real drift detection — same reasoning as the monolith's
+      # own test profile. This service's tests get that fidelity from the
+      # real db/migration set copied into test resources (see pom.xml),
+      # even though the service's own runtime never runs Flyway at all.
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+skillsphere:
+  adaptive:
+    elo-k-factor: 32
+    diagnostic-max-items: 25
+    diagnostic-target-se: 0.40
+    mastery-threshold: 0.80
+  security:
+    jwt:
+      secret: test-only-secret-value-at-least-32-bytes-long-for-hs256
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+      issuer: skillsphere-test
+    cors:
+      allowed-origins: http://localhost:5173
+
+logging:
+  level:
+    org.testcontainers: WARN
+    com.github.dockerjava: WARN
+    org.springframework.modulith: WARN
