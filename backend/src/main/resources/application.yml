@@ -13,6 +13,23 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
+  # Consumes identity-service's events (see notification.internal.
+  # IdentityMailListener). A fixed groupId is what lets a restart resume
+  # from the last committed offset instead of replaying — or losing —
+  # everything; earliest only matters the first time this group ever
+  # connects, when no committed offset exists yet.
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: skillsphere-backend-notification
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.skillsphere.notification.internal
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.skillsphere.notification.internal.IdentityEventEnvelope
+
   datasource:
     url: jdbc:postgresql://localhost:5432/skillsphere
     username: skillsphere

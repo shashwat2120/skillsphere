@@ -64,6 +64,13 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-config</artifactId>
         </dependency>
+        <!-- Consumes identity-service's Kafka events (see
+             notification.internal.IdentityMailListener) now that identity no
+             longer lives in this same process to publish them in-process. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
 
         <!-- ==================== Web / Core ==================== -->
         <!-- NOTE: Boot 4 renamed this from spring-boot-starter-web -->
@@ -322,6 +329,22 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- A Windows JDK NIO bug otherwise fails every
+                         @SpringBootTest(webEnvironment = RANDOM_PORT) test
+                         with "Unable to establish loopback connection" the
+                         moment it boots an embedded Tomcat — this was
+                         previously worked around by passing -DargLine on the
+                         command line by hand every run rather than fixed
+                         here, which is exactly the kind of thing a cold
+                         session (or CI) forgets. -->
+                    <argLine>-Djdk.net.unixdomain.tmpdir=C:\temp\unixsock</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>
