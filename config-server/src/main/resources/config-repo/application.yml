@@ -1,0 +1,8 @@
+# Shared across every service that imports from this config server —
+# applies before any service-specific file (skillsphere-backend.yml etc.)
+# is layered on top.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

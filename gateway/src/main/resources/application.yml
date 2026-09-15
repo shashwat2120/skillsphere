@@ -1,0 +1,32 @@
+server:
+  # Not 8000: something outside this project's own processes (an unrelated
+  # sandbox-owned service, unrelated to anything Sprint 5/6 starts) already
+  # holds that port on this machine, and killing a process this session
+  # never launched itself is not a safe move — 9000 sidesteps the conflict
+  # entirely and is otherwise unused here.
+  port: 9000
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    loadbalancer:
+      # Client-side load balancing needs the caller to already know which
+      # instances exist; with exactly one skillsphere-backend instance this
+      # is a formality now and the reason a second instance needs zero
+      # gateway changes later.
+      eureka:
+        approximate-zone-from-hostname: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

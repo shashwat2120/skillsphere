@@ -39,6 +39,36 @@ services:
       timeout: 3s
       retries: 10
 
+  # Kafka-API-compatible broker for Sprint 6's cross-service events — the
+  # substitute for the in-process ApplicationEventPublisher calls that
+  # worked when identity and notification were one JVM and stop working
+  # the moment they are not. Redpanda over real Kafka for the same reason
+  # as everywhere else in this project: one container, no ZooKeeper, free,
+  # and the wire protocol is Kafka's, so spring-kafka needs no code aware
+  # it isn't talking to Kafka itself.
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    container_name: skillsphere-redpanda
+    restart: unless-stopped
+    command:
+      - redpanda start
+      - --smp 1
+      - --memory 512M
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true'"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+
   mailpit:
     image: axllent/mailpit:latest
     container_name: skillsphere-mailpit
@@ -58,3 +88,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  redpanda_data:

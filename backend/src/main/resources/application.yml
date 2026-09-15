@@ -1,6 +1,17 @@
 spring:
   application:
-    name: skillsphere
+    # Doubles as the Eureka service id and the name the config server
+    # matches config files against (skillsphere-backend.yml) — the two
+    # conventions Sprint 6 relies on both key off this one value.
+    name: skillsphere-backend
+
+  # "optional:" is the whole design here: this monolith must keep booting
+  # and behaving exactly as it did in Sprint 5 whether or not the Sprint 6
+  # config server happens to be running. Centralised config is additive,
+  # never a new hard dependency for what is still a perfectly good
+  # standalone application.
+  config:
+    import: "optional:configserver:http://localhost:8888"
 
   datasource:
     url: jdbc:postgresql://localhost:5432/skillsphere
@@ -167,8 +178,24 @@ skillsphere:
   risk:
     # Matches the seeded platform_settings row (risk.early_window_days) —
     # kept as its own property because risk scoring reads it on every
-    # scheduled pass, not from a table an admin UI edits yet.
+    # scheduled pass, not from a table an admin UI edits yet. Sprint 6's
+    # config server can override this per skillsphere-backend.yml — see
+    # that file's own comment for why this specific property is the one
+    # used to prove the override actually takes effect.
     early-window-days: 14
+
+# Sprint 6: registers this instance with Eureka so the gateway (and, later,
+# any extracted service) can find it by name instead of a fixed host:port.
+# Registration retries in the background rather than blocking startup, so
+# this monolith still boots and runs standalone with discovery-server never
+# started at all — see the spring.config.import comment above for the same
+# principle applied to the config server.
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
 
 logging:
   level:
