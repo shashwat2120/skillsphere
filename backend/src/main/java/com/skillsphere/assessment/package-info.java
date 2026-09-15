@@ -8,5 +8,5 @@
  */
 @org.springframework.modulith.ApplicationModule(
         displayName = "Assessment",
-        allowedDependencies = {"shared", "skill", "content"})
+        allowedDependencies = {"shared", "skill"})
 package com.skillsphere.assessment;
