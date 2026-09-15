@@ -1,0 +1,63 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: realtime-service
+
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skillsphere
+    username: skillsphere
+    password: skillsphere
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+skillsphere:
+  confusion:
+    failure-threshold: 3
+    window-minutes: 30
+  security:
+    jwt:
+      secret: ${JWT_SECRET:local-development-secret-change-me-at-least-32-bytes-long}
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+      issuer: skillsphere
+    cors:
+      allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO
+    com.skillsphere: DEBUG

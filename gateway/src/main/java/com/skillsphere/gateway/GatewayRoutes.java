@@ -65,6 +65,21 @@ public class GatewayRoutes {
                         .route(path("/api/verification/**"), http())
                         .filter(lb("verification-service"))
                         .build())
+                .and(route("realtime_service_api")
+                        // Deliberately NOT routing /ws/** here. This is the
+                        // servlet-based MVC flavor of Spring Cloud Gateway,
+                        // and a plain HandlerFunctions.http() route cannot
+                        // proxy a WebSocket upgrade request — confirmed live:
+                        // the handshake through this gateway returns 400,
+                        // the identical handshake straight to
+                        // realtime-service returns a correct 101 Switching
+                        // Protocols. Clients connect to realtime-service
+                        // directly for /ws (see frontend/vite.config.ts's
+                        // dev proxy); only this service's plain HTTP API
+                        // goes through the gateway.
+                        .route(path("/api/realtime/**"), http())
+                        .filter(lb("realtime-service"))
+                        .build())
                 .and(route("skillsphere_backend_api")
                         .route(path("/api/**"), http())
                         // .before(uri("lb://...")) looks equivalent but is
