@@ -61,6 +61,10 @@ public class GatewayRoutes {
                                 .or(path("/api/public/passports/**")), http())
                         .filter(lb("career-service"))
                         .build())
+                .and(route("verification_service_api")
+                        .route(path("/api/verification/**"), http())
+                        .filter(lb("verification-service"))
+                        .build())
                 .and(route("skillsphere_backend_api")
                         .route(path("/api/**"), http())
                         // .before(uri("lb://...")) looks equivalent but is
