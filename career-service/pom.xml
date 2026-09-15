@@ -55,6 +55,15 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-config</artifactId>
         </dependency>
+        <!-- Resolves lb://assessment-service and lb://verification-service
+             against Eureka for MasteryClient/EvidenceLookupHttpClient's
+             @LoadBalanced RestClient — this service's only outbound
+             synchronous calls, both genuinely live per-user reads a Kafka
+             mirror could not serve fresh enough (see LoadBalancedClientConfig). -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
 
         <!-- ==================== Web / Core ==================== -->
         <dependency>
@@ -71,8 +80,9 @@
         </dependency>
 
         <!-- ==================== Persistence ==================== -->
-        <!-- No Flyway: shares the monolith's physical database for now,
-             same interim arrangement as every other extracted service. -->
+        <!-- career_db is this service's own database as of the
+             database-per-service split — Flyway now owns this schema
+             instead of borrowing the monolith's. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -81,6 +91,22 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- ==================== Events ==================== -->
+        <!-- Consumes skill-catalog-events and skill-prerequisite-events —
+             see SkillCatalogEventListener and SkillPrerequisiteEventListener. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
         </dependency>
 
         <!-- ==================== Redis ==================== -->

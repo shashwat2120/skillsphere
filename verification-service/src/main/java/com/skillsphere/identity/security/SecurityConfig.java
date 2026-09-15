@@ -28,8 +28,10 @@ import java.util.List;
  * The application's security rules — this service's own copy, local JWT
  * validation against the same shared secret every service verifies with.
  *
- * <p>One endpoint family, {@code /api/verification/**}, no role gate
- * beyond being signed in — matching the monolith's own rule for this path.
+ * <p>One public endpoint family, {@code /api/verification/**}, no role
+ * gate beyond being signed in — matching the monolith's own rule for this
+ * path. A second, {@code /internal/**}, is not public at all in the
+ * ordinary sense — see {@code InternalEvidenceController}.
  */
 @Configuration
 @EnableMethodSecurity
@@ -56,6 +58,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                             .permitAll()
+                        // Service-to-service only — see
+                        // InternalEvidenceController's own class comment.
+                        .requestMatchers("/internal/**").permitAll()
 
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
 

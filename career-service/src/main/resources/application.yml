@@ -8,13 +8,24 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
+  # career_db — this service's own database. skills_mirror and
+  # skill_prerequisites_mirror are local read-only copies of assessment-
+  # service's catalog data — see V2/V3 migrations — consumed via a second
+  # Kafka container factory (SkillPrerequisiteKafkaConfig) the same way
+  # analytics-service and realtime-service needed one. masteryOf and
+  # evidence, the two genuinely live per-learner reads, go over real
+  # synchronous calls instead — see MasteryClient and
+  # EvidenceLookupHttpClient.
   datasource:
-    url: jdbc:postgresql://localhost:5432/skillsphere
+    url: jdbc:postgresql://localhost:5432/career_db
     username: skillsphere
     password: skillsphere
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
+
+  flyway:
+    enabled: true
 
   jpa:
     hibernate:
@@ -30,6 +41,18 @@ spring:
       host: localhost
       port: 6379
       timeout: 2000ms
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: career-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.skillsphere.career.internal
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.skillsphere.career.internal.SkillCatalogChangedEvent
 
 skillsphere:
   security:
