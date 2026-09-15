@@ -8,13 +8,27 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
+  # assessment_db — this service's own database, same local Postgres
+  # instance every other service uses. Cross-service reads (skills, items
+  # for realtime-service's arena; skills for content/verification/career/
+  # analytics-service) no longer come from a shared table — each dependent
+  # service keeps its own local read-model mirror, kept current by the
+  # Kafka events this service publishes on every catalog change (see
+  # SkillCatalogEventBridge / ItemCatalogEventBridge). career-service's one
+  # genuinely live need, current per-user mastery, calls this service's
+  # /api/internal/mastery endpoint directly instead of a mirror — mastery
+  # changes on every response, so a lagging copy would show a learner as
+  # not-ready right after they proved otherwise.
   datasource:
-    url: jdbc:postgresql://localhost:5432/skillsphere
+    url: jdbc:postgresql://localhost:5432/assessment_db
     username: skillsphere
     password: skillsphere
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
+
+  flyway:
+    enabled: true
 
   jpa:
     hibernate:

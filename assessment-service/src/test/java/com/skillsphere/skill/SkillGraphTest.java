@@ -39,9 +39,6 @@ class SkillGraphTest extends IntegrationTest {
     @Autowired
     LearnerSkillStateRepository learnerStates;
 
-    @Autowired
-    org.springframework.jdbc.core.JdbcTemplate jdbc;
-
     private static final BigDecimal HARD = BigDecimal.ONE;
     private static final BigDecimal SOFT = new BigDecimal("0.50");
     private static final BigDecimal MASTERY_THRESHOLD = new BigDecimal("0.80");
@@ -52,28 +49,20 @@ class SkillGraphTest extends IntegrationTest {
     }
 
     /**
-     * Creates a real user row and returns its id.
+     * A synthetic but unique learner id.
      *
-     * <p>Inserted with JDBC rather than through the identity module's API for two
-     * reasons. Architecturally, the skill module is forbidden from depending on
-     * identity — a test that imported {@code UserRepository} would be asserting a
-     * coupling the Modulith boundary test forbids. Practically, registering
-     * through the endpoint would hash a password with Argon2id at 64 MiB per
-     * learner, which these tests create by the dozen.
-     *
-     * <p>The row has to exist at all because {@code learner_skill_state} carries a
-     * foreign key to {@code users}. That is deliberate and not a contradiction:
-     * the <em>entity</em> holds a plain id so no JPA association crosses a future
-     * service boundary, while the <em>database</em> still enforces integrity for
-     * as long as both tables share one schema.
+     * <p>Used to be a real row inserted into a {@code users} table this
+     * database also owned, because {@code learner_skill_state} carried a
+     * foreign key to it — see this service's own V1 migration for why that
+     * FK is gone now that identity-service owns {@code users} in its own
+     * database: {@code learner_skill_state.user_id} is a plain, unenforced
+     * column, the same trust boundary as everywhere else in this split (the
+     * caller is already an authenticated learner by the time this table is
+     * written). Nothing here needs a real user row any more, only an id
+     * that will not collide with another test's.
      */
     private long newLearnerId() {
-        String email = "skillgraph-" + UUID.randomUUID() + "@example.com";
-        jdbc.update("""
-                INSERT INTO users (email, password_hash, full_name, status, created_at)
-                VALUES (?, 'x', 'Graph Test Learner', 'ACTIVE', now())
-                """, email);
-        return jdbc.queryForObject("SELECT id FROM users WHERE email = ?", Long.class, email);
+        return Math.abs(UUID.randomUUID().getMostSignificantBits() % 1_000_000_000L);
     }
 
     private void master(long userId, Skill skill, String mastery) {

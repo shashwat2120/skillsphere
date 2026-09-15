@@ -28,12 +28,13 @@ import java.util.List;
  * The application's security rules — this service's own copy, local JWT
  * validation against the same shared secret every service verifies with.
  *
- * <p>Four endpoint families: {@code /api/diagnostics/**} (the adaptive
- * diagnostic, any signed-in learner), {@code /api/skills/**} (the skill
- * graph, any signed-in user), {@code /api/instructor/items/**} (item
+ * <p>Four public endpoint families: {@code /api/diagnostics/**} (the
+ * adaptive diagnostic, any signed-in learner), {@code /api/skills/**} (the
+ * skill graph, any signed-in user), {@code /api/instructor/items/**} (item
  * authoring, INSTRUCTOR/ADMIN) and {@code /api/admin/skills/**} (skill
  * graph editing, ADMIN) — matching the monolith's own rules for these
- * exact paths.
+ * exact paths. A fifth, {@code /internal/**}, is not public at all in the
+ * ordinary sense — see {@code InternalMasteryController}.
  */
 @Configuration
 @EnableMethodSecurity
@@ -60,6 +61,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                             .permitAll()
+                        // Service-to-service only — see InternalMasteryController's
+                        // own class comment. Never routed through the gateway, and
+                        // this port is not reachable from a browser, so "no bearer
+                        // token required" does not mean "publicly callable" here.
+                        .requestMatchers("/internal/**").permitAll()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/instructor/**").hasAnyRole("INSTRUCTOR", "ADMIN")

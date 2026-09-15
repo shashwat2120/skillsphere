@@ -84,8 +84,9 @@
         </dependency>
 
         <!-- ==================== Persistence ==================== -->
-        <!-- No Flyway: shares the monolith's physical database for now,
-             same interim arrangement as every other extracted service. -->
+        <!-- assessment_db is this service's own database as of the
+             database-per-service split — Flyway now owns this schema
+             instead of borrowing the monolith's. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -94,6 +95,14 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- ==================== Redis ==================== -->
@@ -182,24 +191,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <!-- Flyway is test-scoped only: this service's own runtime has no
-             migrations (see the persistence comment above — it shares the
-             monolith's schema). Tests need one, though, since SkillGraphTest
-             inserts a real users row via raw JDBC (learner_skill_state's FK
-             target) and Hibernate's own create-drop wouldn't produce that
-             table at all — this service owns no User entity. Copied from
-             db/migration into src/test/resources so tests run against the
-             real schema, the same fidelity the monolith's own suite has. -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-flyway</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

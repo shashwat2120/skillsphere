@@ -3,6 +3,7 @@ package com.skillsphere.skill.internal;
 import com.skillsphere.shared.audit.AuditLogger;
 import com.skillsphere.shared.error.ConflictException;
 import com.skillsphere.shared.error.NotFoundException;
+import com.skillsphere.skill.SkillCatalogChanged;
 import com.skillsphere.skill.domain.LearnerSkillState;
 import com.skillsphere.skill.domain.LearnerSkillStateRepository;
 import com.skillsphere.skill.domain.Skill;
@@ -13,6 +14,7 @@ import com.skillsphere.skill.domain.SkillRepository;
 import com.skillsphere.skill.web.SkillDtos;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -39,6 +41,7 @@ public class SkillService {
     private final LearnerSkillStateRepository learnerStates;
     private final SkillGraphService graph;
     private final AuditLogger auditLogger;
+    private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // -----------------------------------------------------------------
@@ -60,6 +63,7 @@ public class SkillService {
         log.info("Created skill '{}' ({})", skill.getName(), skill.getSlug());
         Skill saved = skills.save(skill);
         auditLogger.record("SKILL_CREATED", "SKILL", saved.getId(), null, skillJson(saved), null);
+        events.publishEvent(toCatalogChanged(saved));
         return toResponse(saved);
     }
 
@@ -82,6 +86,7 @@ public class SkillService {
             skill.setActive(request.active());
         }
         auditLogger.record("SKILL_UPDATED", "SKILL", id, before, skillJson(skill), null);
+        events.publishEvent(toCatalogChanged(skill));
         return toResponse(skill);
     }
 
@@ -102,6 +107,7 @@ public class SkillService {
         skill.setActive(false);
         log.info("Retired skill '{}'", skill.getName());
         auditLogger.record("SKILL_RETIRED", "SKILL", id, before, skillJson(skill), null);
+        events.publishEvent(toCatalogChanged(skill));
     }
 
     @Transactional(readOnly = true)
@@ -213,6 +219,11 @@ public class SkillService {
         if (decayRate != null) {
             skill.setDecayRate(decayRate);
         }
+    }
+
+    private SkillCatalogChanged toCatalogChanged(Skill skill) {
+        return new SkillCatalogChanged(skill.getId(), skill.getSlug(), skill.getName(),
+                skill.getLevelBand() == null ? null : skill.getLevelBand().name(), skill.isActive());
     }
 
     private String skillJson(Skill skill) {

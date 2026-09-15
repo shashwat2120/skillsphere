@@ -1,5 +1,6 @@
 package com.skillsphere.assessment.internal;
 
+import com.skillsphere.assessment.ItemCatalogChanged;
 import com.skillsphere.assessment.domain.*;
 import com.skillsphere.assessment.web.ItemDtos;
 import com.skillsphere.shared.error.ForbiddenException;
@@ -7,6 +8,7 @@ import com.skillsphere.shared.error.NotFoundException;
 import com.skillsphere.shared.error.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ public class ItemBankService {
     private final ItemRepository items;
     private final ItemOptionRepository options;
     private final MisconceptionRepository misconceptions;
+    private final ApplicationEventPublisher events;
 
     @Transactional
     public ItemDtos.ItemResponse create(ItemDtos.CreateItemRequest request, Long authorId) {
@@ -124,6 +127,7 @@ public class ItemBankService {
         }
 
         item.setStatus(ItemStatus.ACTIVE);
+        events.publishEvent(toCatalogChanged(item));
     }
 
     @Transactional
@@ -134,6 +138,22 @@ public class ItemBankService {
         // a learner's passport rather than merely stopping the question.
         item.setStatus(ItemStatus.RETIRED);
         log.info("Item {} retired by user {}", itemId, actingUserId);
+        events.publishEvent(toCatalogChanged(item));
+    }
+
+    /**
+     * Builds the event realtime-service's arena item mirror consumes.
+     *
+     * <p>Published on activate and retire only — see {@link ItemCatalogChanged}
+     * class comment for why draft items are excluded.
+     */
+    private ItemCatalogChanged toCatalogChanged(Item item) {
+        List<ItemCatalogChanged.OptionInfo> optionInfos = options.findByItemIdOrderByPosition(item.getId())
+                .stream()
+                .map(o -> new ItemCatalogChanged.OptionInfo(o.getId(), o.getText(), o.isCorrect(), o.getPosition()))
+                .toList();
+        return new ItemCatalogChanged(item.getId(), item.getSkillId(), item.getStem(),
+                item.getStatus().name(), optionInfos);
     }
 
     /**

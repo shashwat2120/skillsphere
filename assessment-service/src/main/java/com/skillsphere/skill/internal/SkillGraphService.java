@@ -4,6 +4,7 @@ import com.skillsphere.shared.audit.AuditLogger;
 import com.skillsphere.shared.error.ConflictException;
 import com.skillsphere.shared.error.NotFoundException;
 import com.skillsphere.shared.error.ValidationException;
+import com.skillsphere.skill.SkillPrerequisiteChanged;
 import com.skillsphere.skill.domain.LearnerSkillStateRepository;
 import com.skillsphere.skill.domain.Skill;
 import com.skillsphere.skill.domain.SkillPrerequisite;
@@ -11,6 +12,7 @@ import com.skillsphere.skill.domain.SkillPrerequisiteRepository;
 import com.skillsphere.skill.domain.SkillRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -52,6 +54,7 @@ public class SkillGraphService {
     private final SkillPrerequisiteRepository prerequisites;
     private final LearnerSkillStateRepository learnerStates;
     private final AuditLogger auditLogger;
+    private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // -----------------------------------------------------------------
@@ -99,6 +102,7 @@ public class SkillGraphService {
                 skill.getName(), prerequisite.getName(), strength);
         SkillPrerequisite saved = prerequisites.save(edge);
         auditLogger.record("SKILL_PREREQUISITE_ADDED", "SKILL", skillId, null, edgeJson(saved), null);
+        events.publishEvent(new SkillPrerequisiteChanged(skillId, prerequisiteId, strength.doubleValue(), false));
         return saved;
     }
 
@@ -108,6 +112,7 @@ public class SkillGraphService {
                 .orElseThrow(() -> new NotFoundException("Prerequisite edge not found."));
         prerequisites.deleteBySkillIdAndPrerequisiteSkillId(skillId, prerequisiteId);
         auditLogger.record("SKILL_PREREQUISITE_REMOVED", "SKILL", skillId, edgeJson(edge), null, null);
+        events.publishEvent(new SkillPrerequisiteChanged(skillId, prerequisiteId, edge.getStrength().doubleValue(), true));
     }
 
     private String edgeJson(SkillPrerequisite edge) {
