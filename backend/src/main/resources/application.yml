@@ -13,6 +13,15 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
+  # Publishes assessment's ResponseRecorded for analytics-service (see
+  # assessment.internal.AnalyticsEventBridge). JsonSerializer, matching
+  # every other producer in this platform.
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
   datasource:
     url: jdbc:postgresql://localhost:5432/skillsphere
     username: skillsphere
@@ -156,14 +165,6 @@ skillsphere:
     # sub-second once it's resident. Set generously above the cold case so a
     # first-of-session viva doesn't time out while the model loads.
     timeout-seconds: 45
-  risk:
-    # Matches the seeded platform_settings row (risk.early_window_days) —
-    # kept as its own property because risk scoring reads it on every
-    # scheduled pass, not from a table an admin UI edits yet. Sprint 6's
-    # config server can override this per skillsphere-backend.yml — see
-    # that file's own comment for why this specific property is the one
-    # used to prove the override actually takes effect.
-    early-window-days: 14
 
 # Sprint 6: registers this instance with Eureka so the gateway (and, later,
 # any extracted service) can find it by name instead of a fixed host:port.

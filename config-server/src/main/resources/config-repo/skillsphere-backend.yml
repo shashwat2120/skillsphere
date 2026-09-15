@@ -1,12 +1,7 @@
 # Config for the service named "skillsphere-backend" — matched by
 # spring.application.name, the same convention Eureka registration uses.
 #
-# risk.early-window-days is deliberately set to a different value than the
-# monolith's own local application.yml default (14). It exists here purely
-# as a live, checkable proof that centralised config actually wins over
-# the value baked into the jar — if this number shows up at runtime instead
-# of 14, the config server is genuinely in the loop, not just running
-# alongside an application that ignores it.
-skillsphere:
-  risk:
-    early-window-days: 21
+# Empty for now: RiskScoringService (and the risk.early-window-days override
+# this file used to carry as a live proof of centralised config) moved to
+# analytics-service — see config-repo/analytics-service.yml for the same
+# proof, now on the service that actually owns that property.
