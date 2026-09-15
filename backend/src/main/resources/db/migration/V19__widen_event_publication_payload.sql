@@ -1,0 +1,22 @@
+-- =============================================================================
+-- V19 — event_publication.serialized_event: VARCHAR(255) to TEXT
+--
+-- Surfaced by live testing, not by inspection: assessment-service's new
+-- AdminActionRecorded event (published wherever a skill catalog admin
+-- action needs to reach identity-service's audit log — see that record's
+-- class comment) carries the skill's full before/after JSON state, and the
+-- very first live skill update after the database-per-service split failed
+-- to commit with "value too long for type character varying(255)".
+--
+-- VARCHAR(255) was never actually correct for this column — Modulith's own
+-- outbox is meant to hold an arbitrary serialized event, and V10 (which
+-- transcribed this table from JpaEventPublication's column list) happened
+-- to only ever be exercised by small, flat events (ResponseRecorded,
+-- IdentityEventEnvelope's variants) before now, so the mismatch stayed
+-- latent. TEXT has no length cap and no realistic cost difference from
+-- VARCHAR(255) in Postgres — there is no reason to pick a narrower bound
+-- for a column whose entire job is "hold whatever JSON this event
+-- serializes to."
+-- =============================================================================
+
+ALTER TABLE event_publication ALTER COLUMN serialized_event TYPE TEXT;

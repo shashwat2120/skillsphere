@@ -5,22 +5,35 @@ import com.skillsphere.shared.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 
+import java.time.Instant;
+
 /**
- * Records one administrative action, in the same transaction as the action
- * it describes.
+ * Records one administrative action, in the same local transaction as the
+ * action it describes.
  *
- * <p>Deliberately synchronous rather than event-published. An audit trail
- * that could be lost between the action committing and an async listener
- * running is not a trustworthy audit trail — "the log is never deleted" (see
- * the {@code admin_audit_log} migration) only means something if the entry
- * was guaranteed to be written in the first place. Every module that takes an
- * admin action calls this directly, inside its own {@code @Transactional}
- * method, so the log entry and the action it describes commit or roll back
- * together.
+ * <p>Publishes {@link AdminActionRecorded} into Modulith's transactional
+ * outbox rather than writing {@code admin_audit_log} directly, because this
+ * process no longer has that table — it moved to identity-service's own
+ * database as part of the database-per-service split (see that record's
+ * class comment for why identity is the table's new sole owner). This is
+ * not a weaker guarantee than the direct write it replaces: the outbox
+ * write happens in the same local transaction as the action being audited,
+ * so an action that rolls back still produces no event, exactly as before —
+ * it is the same commit-coupled guarantee {@code AnalyticsEventBridge}
+ * already gives {@code ResponseRecorded}, and Modulith's own retry-on-
+ * restart semantics are stronger against process failure than the single-
+ * process synchronous write ever was. What is genuinely new is that the
+ * entry lands in identity-service's database on a short delay rather than
+ * atomically with this transaction's commit — a real trade, but one every
+ * other cross-service fact in this system already makes, and treating audit
+ * specifically as needing a stronger guarantee than the mastery updates
+ * feeding risk scoring would be an arbitrary exception, not a principled
+ * one.
  *
  * <p>The caller supplies only what it actually knows — the action, what it
  * touched, and the before/after state. The acting admin's id and the client
@@ -47,7 +60,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 @RequiredArgsConstructor
 public class AuditLogger {
 
-    private final AdminAuditLogRepository logs;
+    private final ApplicationEventPublisher events;
     private final HttpServletRequest request;
 
     @Transactional
@@ -63,9 +76,8 @@ public class AuditLogger {
             return;
         }
 
-        AdminAuditLog entry = new AdminAuditLog(
+        events.publishEvent(new AdminActionRecorded(
                 caller.get().id(), action, targetType, targetId,
-                beforeStateJson, afterStateJson, ClientIp.from(request), reason);
-        logs.save(entry);
+                beforeStateJson, afterStateJson, ClientIp.from(request), reason, Instant.now()));
     }
 }
