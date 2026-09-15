@@ -13,23 +13,6 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
-  # Consumes identity-service's events (see notification.internal.
-  # IdentityMailListener). A fixed groupId is what lets a restart resume
-  # from the last committed offset instead of replaying — or losing —
-  # everything; earliest only matters the first time this group ever
-  # connects, when no committed offset exists yet.
-  kafka:
-    bootstrap-servers: localhost:9092
-    consumer:
-      group-id: skillsphere-backend-notification
-      auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: com.skillsphere.notification.internal
-        spring.json.use.type.headers: false
-        spring.json.value.default.type: com.skillsphere.notification.internal.IdentityEventEnvelope
-
   datasource:
     url: jdbc:postgresql://localhost:5432/skillsphere
     username: skillsphere
@@ -87,15 +70,6 @@ spring:
       # inference work, where requests spend their life blocked on I/O.
       enabled: true
 
-  mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail.smtp.auth: ${MAIL_AUTH:false}
-      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
-
   jackson:
     default-property-inclusion: non_null
     deserialization:
@@ -142,13 +116,6 @@ management:
 # are the bootstrap defaults.
 # ---------------------------------------------------------------------------
 skillsphere:
-  mail:
-    from-address: ${MAIL_FROM:noreply@skillsphere.dev}
-    from-name: SkillSphere
-    # Configuration, never derived from a request header. Building links from
-    # the Host header lets an attacker point a password-reset email at a domain
-    # they control and harvest the token.
-    app-base-url: ${APP_BASE_URL:http://localhost:5173}
   security:
     jwt:
       # Override in every non-local environment. Never commit a real secret.

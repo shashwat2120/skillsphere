@@ -26,19 +26,6 @@ skillsphere:
       issuer: skillsphere-test
     cors:
       allowed-origins: http://localhost:5173
-  mail:
-    from-address: noreply@skillsphere.test
-    from-name: SkillSphere Test
-    app-base-url: http://localhost:5173
-
-management:
-  health:
-    mail:
-      # Off because the suite replaces JavaMailSender with a mock, and the mail
-      # health contributor then has no real sender to wrap and fails the whole
-      # context with "'beans' must not be empty". The contributor is not under
-      # test here — actual delivery is verified separately against Mailpit.
-      enabled: false
 
 logging:
   level:

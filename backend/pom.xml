@@ -63,14 +63,6 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-config</artifactId>
         </dependency>
-        <!-- Consumes identity-service's Kafka events (see
-             notification.internal.IdentityMailListener) now that identity no
-             longer lives in this same process to publish them in-process. -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-kafka</artifactId>
-        </dependency>
-
         <!-- ==================== Web / Core ==================== -->
         <!-- NOTE: Boot 4 renamed this from spring-boot-starter-web -->
         <dependency>
@@ -131,15 +123,10 @@
              this process no longer hashes or checks a password anywhere —
              that moved to identity-service with account issuance. -->
 
-        <!-- ==================== Mail (async, queued) ==================== -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-mail</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
-        </dependency>
+        <!-- Mail is gone too: notification-service sends it now (see that
+             project's own MailService, ported unchanged), triggered by the
+             same identity-events Kafka topic rather than an in-process
+             listener. -->
 
         <!-- ==================== API documentation ==================== -->
         <!-- springdoc 3.x is the Spring Boot 4 line; 2.x targets Boot 3.

@@ -10,8 +10,6 @@ import com.skillsphere.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,9 +41,6 @@ class SkillGraphTest extends IntegrationTest {
 
     @Autowired
     org.springframework.jdbc.core.JdbcTemplate jdbc;
-
-    @MockitoBean
-    JavaMailSender mailSender;
 
     private static final BigDecimal HARD = BigDecimal.ONE;
     private static final BigDecimal SOFT = new BigDecimal("0.50");
