@@ -2,6 +2,7 @@ package com.skillsphere.career.internal;
 
 import com.skillsphere.skill.SkillLookup;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -27,7 +28,7 @@ public class MasteryClient {
 
     private final RestClient restClient;
 
-    public MasteryClient(RestClient.Builder loadBalancedRestClientBuilder) {
+    public MasteryClient(@LoadBalanced RestClient.Builder loadBalancedRestClientBuilder) {
         this.restClient = loadBalancedRestClientBuilder.baseUrl("http://assessment-service").build();
     }
 

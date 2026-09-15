@@ -1,6 +1,7 @@
 package com.skillsphere.career.internal;
 
 import com.skillsphere.verification.EvidenceLookup;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -25,7 +26,7 @@ public class EvidenceLookupHttpClient implements EvidenceLookup {
 
     private final RestClient restClient;
 
-    public EvidenceLookupHttpClient(RestClient.Builder loadBalancedRestClientBuilder) {
+    public EvidenceLookupHttpClient(@LoadBalanced RestClient.Builder loadBalancedRestClientBuilder) {
         this.restClient = loadBalancedRestClientBuilder.baseUrl("http://verification-service").build();
     }
 
