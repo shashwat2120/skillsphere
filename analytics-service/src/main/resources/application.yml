@@ -8,13 +8,20 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
+  # analytics_db — this service's own database. skills_mirror is a local
+  # read-only copy of assessment-service's skill catalog — see
+  # V2__skills_mirror.sql — consumed via a second Kafka container factory,
+  # see SkillCatalogKafkaConfig.
   datasource:
-    url: jdbc:postgresql://localhost:5432/skillsphere
+    url: jdbc:postgresql://localhost:5432/analytics_db
     username: skillsphere
     password: skillsphere
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
+
+  flyway:
+    enabled: true
 
   jpa:
     hibernate:
