@@ -156,9 +156,6 @@ skillsphere:
       access-token-ttl: 15m
       refresh-token-ttl: 30d
       issuer: skillsphere
-    rate-limit:
-      login-attempts-per-minute: 5
-      login-attempts-per-hour: 20
     cors:
       # Listed explicitly, never wildcarded. A wildcard cannot be combined with
       # credentials, and an enumerated list means a bad deployment fails loudly

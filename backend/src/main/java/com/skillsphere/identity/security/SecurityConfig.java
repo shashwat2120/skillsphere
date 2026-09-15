@@ -72,10 +72,9 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // --- public ---
-                        .requestMatchers("/api/auth/register", "/api/auth/login",
-                                         "/api/auth/refresh", "/api/auth/verify-email",
-                                         "/api/auth/forgot-password", "/api/auth/reset-password")
-                            .permitAll()
+                        // /api/auth/** is no longer served by this process —
+                        // identity-service owns it now, reached through the
+                        // gateway — so there is nothing left here to permit.
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                             .permitAll()
