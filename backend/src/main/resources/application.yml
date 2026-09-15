@@ -13,15 +13,6 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
-  # Publishes assessment's ResponseRecorded for analytics-service (see
-  # assessment.internal.AnalyticsEventBridge). JsonSerializer, matching
-  # every other producer in this platform.
-  kafka:
-    bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-
   datasource:
     url: jdbc:postgresql://localhost:5432/skillsphere
     username: skillsphere
@@ -147,20 +138,6 @@ skillsphere:
       # credentials, and an enumerated list means a bad deployment fails loudly
       # instead of quietly accepting requests from any origin.
       allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
-  adaptive:
-    # Elo step size. Higher reacts faster but is noisier; 32 is the chess default
-    # and a sane starting point until we have real response data.
-    elo-k-factor: 32
-    diagnostic-max-items: 25
-    # Measured, not guessed. An item with discrimination ~1.3 contributes at
-    # most 0.42 of information, so precision climbs from 1.0 by roughly 0.3 per
-    # response. Reaching SE 0.30 needs precision 11.1 — around 34 items per
-    # skill, which is a research-grade target no teaching bank will sustain.
-    # SE 0.40 needs roughly 18, which a real bank can supply and which is ample
-    # for routing decisions. Verified against a live 16-item run that reached
-    # 0.46.
-    diagnostic-target-se: 0.40
-    mastery-threshold: 0.80
   confusion:
     failure-threshold: 3
     window-minutes: 30
