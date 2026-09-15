@@ -64,6 +64,46 @@ skillsphere:
     cors:
       allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
 
+# Backs MasteryClient's and EvidenceLookupHttpClient's @CircuitBreaker/
+# @Retry — see their own class comments for why these two calls, the only
+# ones this service makes onward to another service, need to fail fast
+# and recover rather than hang a request thread. Two smaller-scoped
+# instances rather than the gateway's shared default: this is a client
+# waiting on exactly one downstream call each, not a router fronting
+# arbitrary traffic, so a tighter window (5 calls) catches a real problem
+# just as fast with less noise from ordinary variance.
+resilience4j:
+  circuitbreaker:
+    instances:
+      assessment-service-mastery:
+        sliding-window-type: count_based
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 3s
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        register-health-indicator: true
+      verification-service-evidence:
+        sliding-window-type: count_based
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 3s
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        register-health-indicator: true
+  retry:
+    instances:
+      assessment-service-mastery:
+        max-attempts: 2
+        wait-duration: 200ms
+      verification-service-evidence:
+        max-attempts: 2
+        wait-duration: 200ms
+
 eureka:
   client:
     service-url:
@@ -71,11 +111,20 @@ eureka:
   instance:
     prefer-ip-address: true
 
+# config-server's own shared application.yml sets this same key and wins
+# whenever config-server is reachable (its remote properties take
+# precedence over this local file) — this copy is what actually applies
+# if config-server itself is down, matching the "every service still
+# boots standalone" fallback spring.config.import: optional:... already
+# gives this service for everything else.
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,circuitbreakers,circuitbreakerevents
+  health:
+    circuitbreakers:
+      enabled: true
 
 logging:
   level:

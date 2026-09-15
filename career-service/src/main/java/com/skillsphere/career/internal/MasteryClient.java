@@ -1,6 +1,9 @@
 package com.skillsphere.career.internal;
 
+import com.skillsphere.shared.error.ServiceUnavailableException;
 import com.skillsphere.skill.SkillLookup;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.stereotype.Component;
@@ -17,10 +20,25 @@ import java.util.stream.Collectors;
  * {@code namesOf}/{@code findAllActive}/{@code hardPrerequisitesOf} are.
  * Calls assessment-service's {@code /internal/skills/mastery} directly,
  * load-balanced against Eureka via {@link LoadBalancedClientConfig}.
+ *
+ * <p>{@code @CircuitBreaker} and {@code @Retry} (tuning in application.yml
+ * under {@code resilience4j.*}) exist for the same reason
+ * GatewayRoutes' breaker does at the front door — a struggling assessment-
+ * service should fail this call fast, not hang a request thread for as
+ * long as {@link LoadBalancedClientConfig}'s read timeout allows, retried
+ * a couple of times in case it was one transient blip rather than a real
+ * outage. The fallback deliberately does not degrade silently: returning
+ * an empty mastery map would read as "this learner has proven nothing on
+ * these skills", which is a false and actively harmful claim for a
+ * product whose entire premise is that every skill claim is checkable —
+ * better to fail the whole request loudly via {@link
+ * ServiceUnavailableException} than to show a fabricated zero.
  */
 @Slf4j
 @Component
 public class MasteryClient {
+
+    private static final String CB_NAME = "assessment-service-mastery";
 
     /** JSON object keys are always strings; assessment-service's Map<Long, MasteryInfo> arrives keyed by string. */
     private record MasteryResponse(double masteryProbability, double abilityTheta, int responseCount) {
@@ -32,6 +50,8 @@ public class MasteryClient {
         this.restClient = loadBalancedRestClientBuilder.baseUrl("http://assessment-service").build();
     }
 
+    @CircuitBreaker(name = CB_NAME, fallbackMethod = "masteryUnavailable")
+    @Retry(name = CB_NAME)
     public Map<Long, SkillLookup.MasteryInfo> masteryOf(Long userId, Collection<Long> skillIds) {
         if (skillIds.isEmpty()) {
             return Map.of();
@@ -56,5 +76,14 @@ public class MasteryClient {
         response.forEach((skillId, m) -> result.put(Long.valueOf(skillId),
                 new SkillLookup.MasteryInfo(m.masteryProbability(), m.abilityTheta(), m.responseCount())));
         return result;
+    }
+
+    @SuppressWarnings("unused")
+    private Map<Long, SkillLookup.MasteryInfo> masteryUnavailable(Long userId, Collection<Long> skillIds, Throwable cause) {
+        log.warn("assessment-service unreachable for mastery lookup (user {}, {} skills): {}",
+                userId, skillIds.size(), cause.toString());
+        throw new ServiceUnavailableException("ASSESSMENT_SERVICE_UNAVAILABLE",
+                "Skill mastery data is temporarily unavailable — assessment-service isn't responding. "
+                        + "Try again shortly.", cause);
     }
 }

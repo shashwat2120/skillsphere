@@ -25,8 +25,55 @@ eureka:
   instance:
     prefer-ip-address: true
 
+# Backs GatewayRoutes' circuitBreaker() filter on every route — see that
+# class's own comment for why every route needs one. One instance per
+# service rather than one shared breaker: a struggling verification-
+# service (the one calling out to Ollama, genuinely the slowest thing in
+# this system) should not trip identity-service's breaker and lock out
+# login for everyone else.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: count_based
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        # Half the last 10 requests failing is treated as "this service is
+        # actually struggling", not one-off noise from a single slow query.
+        failure-rate-threshold: 50
+        # A request itself already times out well before this (each
+        # service's own Tomcat/JDBC timeouts), so this is a second,
+        # explicit line: if a call takes longer than 4s, the breaker
+        # counts it as a failure even if it eventually succeeds, since a
+        # caller waiting 4s+ for the gateway is already a bad experience.
+        slow-call-duration-threshold: 4s
+        slow-call-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+    instances:
+      identity-service-cb:
+        base-config: default
+      analytics-service-cb:
+        base-config: default
+      content-service-cb:
+        base-config: default
+      assessment-service-cb:
+        base-config: default
+      career-service-cb:
+        base-config: default
+      verification-service-cb:
+        base-config: default
+      realtime-service-cb:
+        base-config: default
+      skillsphere-backend-cb:
+        base-config: default
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,gateway,circuitbreakers,circuitbreakerevents
+  health:
+    circuitbreakers:
+      enabled: true

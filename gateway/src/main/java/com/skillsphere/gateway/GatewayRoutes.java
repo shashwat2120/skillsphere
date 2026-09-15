@@ -5,6 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
 
+import java.net.URI;
+
+import static org.springframework.cloud.gateway.server.mvc.filter.CircuitBreakerFilterFunctions.circuitBreaker;
 import static org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions.lb;
 import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
 import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
@@ -24,29 +27,52 @@ import static org.springframework.web.servlet.function.RequestPredicates.path;
  * matches predicates in the order they are combined, first match wins, so
  * the narrower identity routes have to come first or the broad monolith
  * route would swallow every request before identity ever saw one.
+ *
+ * <p><b>Every route now carries a circuit breaker</b> — {@code
+ * circuitBreaker(...)} is added after {@code lb(...)} on each route
+ * deliberately: filters compose so the last one added wraps outermost, and
+ * the breaker needs to sit around both load-balancer resolution and the
+ * actual HTTP call to see failures from either. Without this, one
+ * downstream service hanging (a slow database, a stuck thread pool) would
+ * let every client request pile up waiting on it — this is the single
+ * point every request already passes through, so it is exactly where a
+ * hung backend does the most damage if nothing here fails fast. Each
+ * breaker falls back to {@link FallbackController}, which returns a plain
+ * 503 ProblemDetail naming the service that tripped, rather than the
+ * connection-refused stack trace a caller would see otherwise. Tuning
+ * (failure-rate threshold, wait duration, sliding window) lives in
+ * application.yml under {@code resilience4j.circuitbreaker.instances}, one
+ * instance per service so a struggling verification-service, say, cannot
+ * trip identity-service's breaker too.
  */
 @Configuration
 public class GatewayRoutes {
+
+    private static final URI FALLBACK = URI.create("forward:/fallback");
 
     @Bean
     public RouterFunction<ServerResponse> apiRoute() {
         return route("identity_service_auth_api")
                 .route(path("/api/auth/**"), http())
                 .filter(lb("identity-service"))
+                .filter(circuitBreaker("identity-service-cb", FALLBACK))
                 .build()
                 .and(route("identity_service_admin_api")
                         .route(path("/api/admin/users/**")
                                 .or(path("/api/admin/audit-log/**")), http())
                         .filter(lb("identity-service"))
+                        .filter(circuitBreaker("identity-service-cb", FALLBACK))
                         .build())
                 .and(route("analytics_service_api")
                         .route(path("/api/instructor/analytics/**"), http())
                         .filter(lb("analytics-service"))
+                        .filter(circuitBreaker("analytics-service-cb", FALLBACK))
                         .build())
                 .and(route("content_service_api")
                         .route(path("/api/courses/**")
                                 .or(path("/api/instructor/courses/**")), http())
                         .filter(lb("content-service"))
+                        .filter(circuitBreaker("content-service-cb", FALLBACK))
                         .build())
                 .and(route("assessment_service_api")
                         .route(path("/api/diagnostics/**")
@@ -54,16 +80,19 @@ public class GatewayRoutes {
                                 .or(path("/api/instructor/items/**"))
                                 .or(path("/api/admin/skills/**")), http())
                         .filter(lb("assessment-service"))
+                        .filter(circuitBreaker("assessment-service-cb", FALLBACK))
                         .build())
                 .and(route("career_service_api")
                         .route(path("/api/careers/**")
                                 .or(path("/api/passport/**"))
                                 .or(path("/api/public/passports/**")), http())
                         .filter(lb("career-service"))
+                        .filter(circuitBreaker("career-service-cb", FALLBACK))
                         .build())
                 .and(route("verification_service_api")
                         .route(path("/api/verification/**"), http())
                         .filter(lb("verification-service"))
+                        .filter(circuitBreaker("verification-service-cb", FALLBACK))
                         .build())
                 .and(route("realtime_service_api")
                         // Deliberately NOT routing /ws/** here. This is the
@@ -79,6 +108,7 @@ public class GatewayRoutes {
                         // goes through the gateway.
                         .route(path("/api/realtime/**"), http())
                         .filter(lb("realtime-service"))
+                        .filter(circuitBreaker("realtime-service-cb", FALLBACK))
                         .build())
                 .and(route("skillsphere_backend_api")
                         .route(path("/api/**"), http())
@@ -91,6 +121,7 @@ public class GatewayRoutes {
                         // failure: "Unroutable protocol scheme:
                         // lb://skillsphere-backend".
                         .filter(lb("skillsphere-backend"))
+                        .filter(circuitBreaker("skillsphere-backend-cb", FALLBACK))
                         .build());
     }
 }

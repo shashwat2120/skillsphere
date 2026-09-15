@@ -19,18 +19,20 @@
         Sprint 6's sixth extraction: role catalogue, gap analysis, learning
         path generation and the skill passport. A genuine leaf module —
         nothing in the monolith held a Java dependency on career — with two
-        outbound read-only dependencies of its own (skill.SkillLookup,
-        verification.EvidenceLookup), both satisfied by small shims against
-        the still-shared database, matching content-service's and
-        analytics-service's identical pattern for skill. Neither skill nor
-        verification has been extracted as its own service yet, so both
-        remain interim shared-database reads rather than HTTP calls.
+        outbound dependencies of its own: skill.SkillLookup's catalog data
+        (names, prerequisite edges) reads a local Kafka-synced mirror, since
+        assessment-service now owns skills in its own database and catalog
+        data barely changes; masteryOf and verification.EvidenceLookup are
+        real synchronous @LoadBalanced calls instead, since both are
+        genuinely live per-learner reads a mirror could not serve fresh
+        enough for a readiness score to be trustworthy.
     </description>
 
     <properties>
         <java.version>21</java.version>
         <springdoc.version>3.1.1</springdoc.version>
         <spring-cloud.version>2025.1.2</spring-cloud.version>
+        <resilience4j.version>2.3.0</resilience4j.version>
     </properties>
 
     <dependencyManagement>
@@ -39,6 +41,16 @@
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
                 <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Not part of Spring Cloud's own BOM — Resilience4j is
+                 released independently, so its version needs pinning here
+                 the same way Spring Cloud's own artifacts are pinned above. -->
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-bom</artifactId>
+                <version>${resilience4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -63,6 +75,33 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+        <!-- Circuit breaker + retry + timeout around MasteryClient and
+             EvidenceLookupHttpClient — the gateway's own breaker (see
+             GatewayRoutes) protects a client hitting this service from a
+             hung downstream, but has no visibility into calls this
+             service makes onward to assessment-service/verification-
+             service itself. Without this, a slow verification-service
+             would hang every /api/passport request behind it for as long
+             as the underlying HTTP client's own timeout (or indefinitely,
+             with none configured) rather than degrading.
+             No spring-boot-starter-aop: Boot 4.x GA dropped it as a
+             standalone artifact (only pre-4.0 milestone builds exist).
+             Not needed anyway — @CircuitBreaker/@Retry are intercepted by
+             plain Spring AOP proxies resilience4j-spring-boot3's own
+             autoconfiguration registers, using spring-context (already on
+             every Boot app's classpath), not AspectJ weaving. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+        </dependency>
+        <!-- ClientHttpRequestFactoryBuilder/HttpClientSettings for
+             LoadBalancedClientConfig's explicit RestClient timeouts —
+             not pulled in transitively by anything else this service
+             already depends on. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-http-client</artifactId>
         </dependency>
 
         <!-- ==================== Web / Core ==================== -->

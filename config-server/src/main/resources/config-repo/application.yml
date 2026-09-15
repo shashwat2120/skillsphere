@@ -1,8 +1,17 @@
 # Shared across every service that imports from this config server —
 # applies before any service-specific file (skillsphere-backend.yml etc.)
-# is layered on top.
+# is layered on top. This is also why a service's own local
+# application.yml cannot simply widen its own exposure list: config-
+# server's remote properties take precedence over a service's local
+# file, so the include list has to be set here to actually reach every
+# importing service — discovered live when career-service's own local
+# circuitbreakers,circuitbreakerevents addition was silently shadowed by
+# this file's narrower list.
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,circuitbreakers,circuitbreakerevents
+  health:
+    circuitbreakers:
+      enabled: true

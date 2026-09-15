@@ -57,6 +57,14 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
+        <!-- Backs GatewayRoutes' circuitBreaker() filter on every route —
+             a downstream service that hangs or errors repeatedly trips
+             its breaker and this gateway fails fast with a clean 503
+             instead of every client request queueing behind it. -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
