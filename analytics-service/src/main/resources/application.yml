@@ -1,0 +1,78 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: analytics-service
+
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/skillsphere
+    username: skillsphere
+    password: skillsphere
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: analytics-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.skillsphere.analytics.internal
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.skillsphere.analytics.internal.ResponseRecordedEvent
+
+skillsphere:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:local-development-secret-change-me-at-least-32-bytes-long}
+      access-token-ttl: 15m
+      refresh-token-ttl: 30d
+      issuer: skillsphere
+    cors:
+      allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+  # Same default as the monolith and identity-service's config-repo override
+  # — this is the property the config-server override in Phase A proved
+  # actually propagates; unchanged here so this service reads the same
+  # effective value as everything else that computes risk.
+  risk:
+    early-window-days: 14
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    root: INFO
+    com.skillsphere: DEBUG

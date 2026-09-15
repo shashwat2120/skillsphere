@@ -1,0 +1,10 @@
+# Config for the service named "analytics-service" — matched by
+# spring.application.name.
+#
+# risk.early-window-days is deliberately set to a different value than
+# analytics-service's own local application.yml default (14) — the same
+# live, checkable proof of centralised config skillsphere-backend.yml used
+# to carry before RiskScoringService moved here.
+skillsphere:
+  risk:
+    early-window-days: 21
