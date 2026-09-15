@@ -1,7 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { ChevronDown, Loader2, ShieldCheck, ShieldX, UserCheck, UserX } from 'lucide-react'
+import {
+  ChevronDown,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  ShieldX,
+  Trash2,
+  UserCheck,
+  UserX,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { api, errorMessage } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -39,7 +48,33 @@ interface AuditEntry {
   createdAt: string
 }
 
-type View = 'users' | 'audit'
+const LEVEL_BANDS = ['FOUNDATIONAL', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'] as const
+
+interface SkillSummary {
+  id: number
+  slug: string
+  name: string
+  description: string | null
+  categoryId: number | null
+  categoryName: string | null
+  levelBand: (typeof LEVEL_BANDS)[number] | null
+  estMinutes: number
+  decayRate: string
+  active: boolean
+}
+
+interface SkillRef {
+  id: number
+  name: string
+}
+
+interface SkillGraphNode {
+  skill: SkillSummary
+  directPrerequisites: SkillRef[]
+  directUnlocks: SkillRef[]
+}
+
+type View = 'users' | 'audit' | 'skills'
 
 const STATUS_TONE: Record<UserSummary['status'], string> = {
   ACTIVE: 'mastered',
@@ -51,13 +86,17 @@ const inputClass =
   'w-full rounded-sq border border-line bg-bg px-2.5 py-1.5 text-sm outline-none focus:border-line-strong'
 
 /**
- * Account moderation and the administrative audit trail, in one place.
+ * Account moderation, the skill graph, and the administrative audit trail,
+ * in one place.
  *
- * A visual-graph editor and a course-authoring UI are deliberately not here —
- * both were scoped out earlier (Phases 2 and 3) as reviewer-facing depth the
- * project traded away, and nothing about building the admin surface changes
- * that trade. What an admin actually has to do day to day — let instructors
- * in, moderate accounts, and see who did what — is what this page covers.
+ * The skill graph tab is form-based rather than the drag-and-drop editor the
+ * schema comments once imagined — a list of skills with an edit panel and a
+ * prerequisite picker, in the same register as the rest of this page. That
+ * matches the risk: {@link AdminSkillController}'s own docs call this "the
+ * highest-leverage surface in the product," since a bad edge can stop path
+ * generation for every learner at once, so simple and legible beats clever.
+ * Course and item authoring live on their own instructor-facing page rather
+ * than here, since they are gated to INSTRUCTOR as well as ADMIN.
  */
 export function AdminPage() {
   const [view, setView] = useState<View>('users')
@@ -76,10 +115,15 @@ export function AdminPage() {
           <ToggleButton active={view === 'audit'} onClick={() => setView('audit')}>
             Audit log
           </ToggleButton>
+          <ToggleButton active={view === 'skills'} onClick={() => setView('skills')}>
+            Skills
+          </ToggleButton>
         </div>
       </header>
 
-      {view === 'users' ? <UsersView /> : <AuditView />}
+      {view === 'users' && <UsersView />}
+      {view === 'audit' && <AuditView />}
+      {view === 'skills' && <SkillsView />}
     </div>
   )
 }
@@ -422,5 +466,359 @@ function AuditRow({ entry, index }: { entry: AuditEntry; index: number }) {
         </div>
       )}
     </motion.div>
+  )
+}
+
+// -----------------------------------------------------------------------
+// Skill graph
+// -----------------------------------------------------------------------
+
+function SkillsView() {
+  const queryClient = useQueryClient()
+  const [creating, setCreating] = useState(false)
+
+  const { data: skills, isLoading } = useQuery({
+    queryKey: ['admin', 'skills'],
+    queryFn: async () => (await api.get<SkillSummary[]>('/admin/skills')).data,
+  })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'skills'] })
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="legend">Skills {skills ? `(${skills.length})` : ''}</h2>
+        <Button size="sm" variant="outline" onClick={() => setCreating((c) => !c)}>
+          <Plus className="size-3.5" /> New skill
+        </Button>
+      </div>
+
+      {creating && (
+        <CreateSkillForm
+          onDone={() => {
+            setCreating(false)
+            invalidate()
+          }}
+          onCancel={() => setCreating(false)}
+        />
+      )}
+
+      {isLoading && <div className="skeleton h-40 w-full rounded-sq-lg" />}
+
+      <div className="space-y-2">
+        {skills?.map((s) => (
+          <SkillRow key={s.id} skill={s} allSkills={skills} onChanged={invalidate} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CreateSkillForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [slug, setSlug] = useState('')
+  const [name, setName] = useState('')
+  const [levelBand, setLevelBand] = useState<string>('FOUNDATIONAL')
+  const [estMinutes, setEstMinutes] = useState('30')
+
+  const create = useMutation({
+    mutationFn: async () =>
+      api.post('/admin/skills', {
+        slug,
+        name,
+        levelBand,
+        estMinutes: Number(estMinutes),
+        decayRate: 0,
+      }),
+    onSuccess: () => {
+      toast.success('Skill created.')
+      onDone()
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not create the skill.')),
+  })
+
+  return (
+    <div className="mb-3 grid grid-cols-2 gap-2 rounded-sq border border-line bg-surface p-3">
+      <div>
+        <label className="legend mb-1 block">Name</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Generics" />
+      </div>
+      <div>
+        <label className="legend mb-1 block">Slug</label>
+        <input
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          className={inputClass}
+          placeholder="generics"
+        />
+      </div>
+      <div>
+        <label className="legend mb-1 block">Level</label>
+        <select value={levelBand} onChange={(e) => setLevelBand(e.target.value)} className={inputClass}>
+          {LEVEL_BANDS.map((b) => (
+            <option key={b} value={b}>
+              {b.toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="legend mb-1 block">Est. minutes</label>
+        <input
+          type="number"
+          min={1}
+          value={estMinutes}
+          onChange={(e) => setEstMinutes(e.target.value)}
+          className={inputClass}
+        />
+      </div>
+      <div className="col-span-2 flex justify-end gap-1.5">
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!slug.trim() || !name.trim() || create.isPending}
+          onClick={() => create.mutate()}
+        >
+          {create.isPending && <Loader2 className="size-3.5 animate-spin" />} Create
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function SkillRow({
+  skill,
+  allSkills,
+  onChanged,
+}: {
+  skill: SkillSummary
+  allSkills: SkillSummary[]
+  onChanged: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [name, setName] = useState(skill.name)
+  const [description, setDescription] = useState(skill.description ?? '')
+  const [levelBand, setLevelBand] = useState<string>(skill.levelBand ?? 'FOUNDATIONAL')
+  const [estMinutes, setEstMinutes] = useState(String(skill.estMinutes))
+  const [decayRate, setDecayRate] = useState(skill.decayRate)
+  const [active, setActive] = useState(skill.active)
+
+  const { data: graph, refetch } = useQuery({
+    queryKey: ['admin', 'skills', skill.id, 'graph'],
+    queryFn: async () => (await api.get<SkillGraphNode>(`/admin/skills/${skill.id}/graph`)).data,
+    enabled: expanded,
+  })
+
+  const save = useMutation({
+    mutationFn: async () =>
+      api.put(`/admin/skills/${skill.id}`, {
+        name,
+        description: description || null,
+        levelBand,
+        estMinutes: Number(estMinutes),
+        decayRate: Number(decayRate),
+        active,
+      }),
+    onSuccess: () => {
+      toast.success('Skill updated.')
+      onChanged()
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not update the skill.')),
+  })
+
+  const retire = useMutation({
+    mutationFn: async () => api.delete(`/admin/skills/${skill.id}`),
+    onSuccess: () => {
+      toast.success('Skill retired.')
+      onChanged()
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not retire the skill.')),
+  })
+
+  const [addingPrereq, setAddingPrereq] = useState(false)
+  const [prereqId, setPrereqId] = useState('')
+  const [strength, setStrength] = useState('1')
+
+  const addPrereq = useMutation({
+    mutationFn: async () =>
+      api.post(`/admin/skills/${skill.id}/prerequisites`, {
+        prerequisiteSkillId: Number(prereqId),
+        strength: Number(strength),
+      }),
+    onSuccess: () => {
+      toast.success('Prerequisite added.')
+      setAddingPrereq(false)
+      setPrereqId('')
+      refetch()
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not add the prerequisite.')),
+  })
+
+  const removePrereq = useMutation({
+    mutationFn: async (prerequisiteId: number) =>
+      api.delete(`/admin/skills/${skill.id}/prerequisites/${prerequisiteId}`),
+    onSuccess: () => {
+      toast.success('Prerequisite removed.')
+      refetch()
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not remove the prerequisite.')),
+  })
+
+  const candidatePrereqs = allSkills.filter(
+    (s) => s.id !== skill.id && !graph?.directPrerequisites.some((p) => p.id === s.id),
+  )
+
+  return (
+    <div className="overflow-hidden rounded-sq border border-line bg-surface">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-bg-sunken"
+      >
+        <span className="flex-1 text-sm font-medium">{skill.name}</span>
+        <span className="text-xs text-fg-subtle">{skill.slug}</span>
+        {!skill.active && (
+          <span
+            className="legend rounded-full border px-2 py-0.5"
+            style={{ color: 'var(--locked)', borderColor: 'var(--locked)', background: 'var(--locked-bg)' }}
+          >
+            retired
+          </span>
+        )}
+        <ChevronDown className={`size-3.5 text-fg-subtle transition-transform ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="space-y-4 border-t border-line px-4 py-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="legend mb-1 block">Name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <label className="legend mb-1 block">Level</label>
+              <select value={levelBand} onChange={(e) => setLevelBand(e.target.value)} className={inputClass}>
+                {LEVEL_BANDS.map((b) => (
+                  <option key={b} value={b}>
+                    {b.toLowerCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="legend mb-1 block">Description</label>
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="legend mb-1 block">Est. minutes</label>
+              <input
+                type="number"
+                min={1}
+                value={estMinutes}
+                onChange={(e) => setEstMinutes(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="legend mb-1 block">Decay rate (0–1)</label>
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step="0.01"
+                value={decayRate}
+                onChange={(e) => setDecayRate(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <label className="col-span-2 flex items-center gap-1.5 text-xs text-fg-muted">
+              <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+              Active (offered to learners)
+            </label>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" variant="outline" disabled={save.isPending} onClick={() => save.mutate()}>
+              {save.isPending && <Loader2 className="size-3.5 animate-spin" />} Save
+            </Button>
+            {skill.active && (
+              <Button size="sm" variant="ghost" disabled={retire.isPending} onClick={() => retire.mutate()}>
+                Retire
+              </Button>
+            )}
+          </div>
+
+          <div className="border-t border-line pt-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="legend">Prerequisites</p>
+              <Button size="sm" variant="ghost" onClick={() => setAddingPrereq((a) => !a)}>
+                <Plus className="size-3.5" /> Add
+              </Button>
+            </div>
+
+            {addingPrereq && (
+              <div className="mb-2 flex items-center gap-1.5">
+                <select
+                  value={prereqId}
+                  onChange={(e) => setPrereqId(e.target.value)}
+                  className={inputClass + ' flex-1'}
+                >
+                  <option value="">Choose a skill…</option>
+                  {candidatePrereqs.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min={0.01}
+                  max={1}
+                  step="0.01"
+                  value={strength}
+                  onChange={(e) => setStrength(e.target.value)}
+                  className={inputClass + ' w-20'}
+                  title="1 = hard gate, lower = advisory"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!prereqId || addPrereq.isPending}
+                  onClick={() => addPrereq.mutate()}
+                >
+                  {addPrereq.isPending ? <Loader2 className="size-3.5 animate-spin" /> : 'Add'}
+                </Button>
+              </div>
+            )}
+
+            {!graph?.directPrerequisites.length && (
+              <p className="text-xs text-fg-subtle">No prerequisites — a root skill.</p>
+            )}
+            <div className="space-y-1">
+              {graph?.directPrerequisites.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-sq bg-bg-sunken px-2.5 py-1.5 text-sm"
+                >
+                  <span>{p.name}</span>
+                  <button
+                    onClick={() => removePrereq.mutate(p.id)}
+                    className="text-fg-subtle transition-colors hover:text-decaying"
+                    aria-label={`Remove ${p.name} as a prerequisite`}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
