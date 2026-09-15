@@ -22,3 +22,13 @@ management:
       # per-service in Grafana instead of blending everyone's request
       # counts and latencies into one undifferentiated series.
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      # 100%, not the 10% a real production deployment would pick — this is
+      # a sprint demo, not a high-traffic system, and a reviewer clicking
+      # through the gateway wants every request they just made to actually
+      # show up in Zipkin, not a random 1-in-10 sample of them.
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans

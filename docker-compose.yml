@@ -126,6 +126,13 @@ services:
     ports:
       - "3001:3000"
 
+  zipkin:
+    image: openzipkin/zipkin:3.4
+    container_name: skillsphere-zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
+
 volumes:
   postgres_data:
   redis_data:

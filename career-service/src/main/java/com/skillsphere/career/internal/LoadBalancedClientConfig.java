@@ -2,6 +2,7 @@ package com.skillsphere.career.internal;
 
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
 import org.springframework.boot.http.client.HttpClientSettings;
+import org.springframework.boot.restclient.autoconfigure.RestClientBuilderConfigurer;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,19 +37,32 @@ import java.time.Duration;
  * included) a plain, un-intercepted builder, while {@link MasteryClient}
  * and {@link EvidenceLookupHttpClient} still get the load-balanced one by
  * asking for it explicitly via the {@code @LoadBalanced} qualifier.
+ *
+ * <p>Both builders are run through Spring Boot's own
+ * {@link RestClientBuilderConfigurer} rather than being handed back from
+ * a bare {@code RestClient.builder()}. That configurer is what applies
+ * every registered {@code RestClientCustomizer} — including the
+ * {@code ObservationRestClientCustomizer} that instruments each call with
+ * a span and propagates trace context in its headers. Skipping it was a
+ * real, live bug: verifying Zipkin end to end showed the gateway to
+ * career-service hop tracing correctly on its own, but every call this
+ * service made onward to assessment-service/verification-service stayed
+ * invisible — a separate, disconnected trace with no span at all on the
+ * receiving side — because a hand-built {@code RestClient.builder()}
+ * never receives that customizer.
  */
 @Configuration
 public class LoadBalancedClientConfig {
 
     @Bean
     @Primary
-    public RestClient.Builder defaultRestClientBuilder() {
-        return RestClient.builder();
+    public RestClient.Builder defaultRestClientBuilder(RestClientBuilderConfigurer configurer) {
+        return configurer.configure(RestClient.builder());
     }
 
     @Bean
     @LoadBalanced
-    public RestClient.Builder loadBalancedRestClientBuilder() {
+    public RestClient.Builder loadBalancedRestClientBuilder(RestClientBuilderConfigurer configurer) {
         // No timeout at all is the actual default here otherwise — a
         // hung assessment-service or verification-service would block a
         // request thread indefinitely rather than failing fast enough
@@ -59,6 +73,6 @@ public class LoadBalancedClientConfig {
                 .build(HttpClientSettings.defaults()
                         .withConnectTimeout(Duration.ofSeconds(2))
                         .withReadTimeout(Duration.ofSeconds(3)));
-        return RestClient.builder().requestFactory(requestFactory);
+        return configurer.configure(RestClient.builder().requestFactory(requestFactory));
     }
 }

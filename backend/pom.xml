@@ -82,6 +82,47 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
+        <!-- Distributed tracing: bridges Micrometer's Observation API (already
+             used by actuator/RestClient/spring-kafka) to Brave, then reports spans
+             to the Zipkin container in docker-compose.yml. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.zipkin.reporter2</groupId>
+            <artifactId>zipkin-reporter-brave</artifactId>
+        </dependency>
+        <!-- Boot 4.x split tracing autoconfiguration out of the actuator
+             starter into its own modules (the same pattern as
+             spring-boot-http-client for RestClient timeouts): this module
+             wires the Brave Tracer/Sampler beans, and spring-boot-zipkin
+             below wires the HTTP sender that actually posts spans to the
+             Zipkin container. Neither is pulled in transitively by the
+             bridge/reporter deps above, confirmed by their absence from
+             the actual dependency:tree output, not assumed. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-tracing</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-zipkin</artifactId>
+        </dependency>
+        <!-- The third and final piece: spring-boot-micrometer-tracing alone
+             only wires generic ObservationHandlers against an
+             io.micrometer.tracing.Tracer bean it expects to already exist -
+             it never creates one. This module actually builds that Tracer
+             (and Tracing/CurrentTraceContext) backed by Brave, and wires
+             Brave's reporter to the Zipkin sender spring-boot-zipkin
+             provides. Found the same way as the other two: the empty
+             Zipkin services list after adding just the first two modules
+             traced back to MicrometerTracingAutoConfiguration's
+             constructor requiring a Tracer bean nothing was providing. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-micrometer-tracing-brave</artifactId>
+        </dependency>
 
         <!-- ==================== Persistence ==================== -->
         <!-- Hibernate 7 maps JSONB natively via @JdbcTypeCode(SqlTypes.JSON),
