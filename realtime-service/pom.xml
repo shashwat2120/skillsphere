@@ -77,8 +77,9 @@
         </dependency>
 
         <!-- ==================== Persistence ==================== -->
-        <!-- No Flyway: shares the monolith's physical database for now,
-             same interim arrangement as every other extracted service. -->
+        <!-- realtime_db is this service's own database as of the
+             database-per-service split — Flyway now owns this schema
+             instead of borrowing the monolith's. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -87,6 +88,22 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- ==================== Events ==================== -->
+        <!-- Consumes skill-catalog-events and item-catalog-events — see
+             SkillCatalogEventListener and ItemCatalogEventListener. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
         </dependency>
 
         <!-- ==================== Redis ==================== -->

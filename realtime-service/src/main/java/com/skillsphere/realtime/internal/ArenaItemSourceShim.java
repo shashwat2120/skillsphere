@@ -12,14 +12,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Stands in for {@code assessment.internal.ArenaItemSourceService}, the same
- * way {@code SkillLookupShim} stands in for skill's own lookup — read-only
- * queries against the still-shared {@code items}/{@code item_options}
- * tables rather than a real call to assessment-service (bundled with skill
- * now, not this process). realtime's own code needed no changes: {@code
- * ArenaItemSource} never imported anything from {@code assessment.domain}
- * or {@code assessment.internal}, so the interface stayed exactly where
- * {@code ArenaService} already expected to find it.
+ * Stands in for {@code assessment.internal.ArenaItemSourceService}, reading
+ * this service's own local {@code items_mirror}/{@code
+ * item_options_mirror} (see V3__items_mirror.sql) instead of assessment-
+ * service's {@code items}/{@code item_options} directly — those tables
+ * live in a different database now, kept current here by
+ * ItemCatalogEventListener rather than queried live.
  */
 @Component
 public class ArenaItemSourceShim implements ArenaItemSource {
@@ -34,7 +32,7 @@ public class ArenaItemSourceShim implements ArenaItemSource {
     @Transactional(readOnly = true)
     public List<ArenaItem> selectItemsForSkill(Long skillId, int count) {
         List<Long> itemIds = jdbc.queryForList(
-                "select id from items where skill_id = ? and status = 'ACTIVE' order by random() limit ?",
+                "select id from items_mirror where skill_id = ? and status = 'ACTIVE' order by random() limit ?",
                 Long.class, skillId, count);
         return itemIds.stream().map(this::toArenaItem).flatMap(Optional::stream).toList();
     }
@@ -49,7 +47,7 @@ public class ArenaItemSourceShim implements ArenaItemSource {
     @Transactional(readOnly = true)
     public ScoredAnswer score(Long itemId, Long selectedOptionId) {
         Long correctOptionId = jdbc.query(
-                        "select id from item_options where item_id = ? and is_correct = true limit 1",
+                        "select id from item_options_mirror where item_id = ? and correct = true limit 1",
                         (ResultSet rs, int n) -> rs.getLong("id"), itemId)
                 .stream().findFirst().orElse(null);
 
@@ -61,14 +59,14 @@ public class ArenaItemSourceShim implements ArenaItemSource {
 
     private Optional<ArenaItem> toArenaItem(Long itemId) {
         List<String> stems = jdbc.query(
-                "select stem from items where id = ?",
+                "select stem from items_mirror where id = ?",
                 (ResultSet rs, int n) -> rs.getString("stem"), itemId);
         if (stems.isEmpty()) {
             return Optional.empty();
         }
 
         List<ArenaOption> options = jdbc.query(
-                "select id, text, position from item_options where item_id = ? order by position",
+                "select id, text, position from item_options_mirror where item_id = ? order by position",
                 (ResultSet rs, int n) -> new PositionedOption(rs.getLong("id"), rs.getString("text"), rs.getInt("position")),
                 itemId).stream()
                 .sorted(Comparator.comparing(PositionedOption::position))
