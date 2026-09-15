@@ -81,6 +81,10 @@ public final class AuthDtos {
             @NotBlank @Email String email) {
     }
 
+    public record ResendVerificationRequest(
+            @NotBlank @Email String email) {
+    }
+
     /**
      * Minimum length matches registration. A reset that accepted a weaker
      * password than signup would be the easiest way to downgrade an account.

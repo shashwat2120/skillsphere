@@ -17,6 +17,7 @@ import com.skillsphere.identity.security.TokenDenylist;
 import com.skillsphere.identity.web.AuthDtos;
 import com.skillsphere.shared.error.ConflictException;
 import com.skillsphere.shared.error.ValidationException;
+import com.skillsphere.shared.ratelimit.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -53,6 +54,12 @@ public class AuthService {
 
     private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofHours(24);
 
+    // Matches PasswordResetService's own resend limits — the same "cannot be
+    // used to flood someone's inbox" concern applies to any endpoint that
+    // sends mail to an arbitrary address on demand.
+    private static final int MAX_RESEND_REQUESTS = 3;
+    private static final Duration RESEND_WINDOW = Duration.ofMinutes(15);
+
     private final UserRepository users;
     private final RoleRepository roles;
     private final RefreshTokenRepository refreshTokens;
@@ -64,6 +71,7 @@ public class AuthService {
     private final TokenDenylist denylist;
     private final SessionRevoker sessionRevoker;
     private final LoginAttemptService loginAttempts;
+    private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher events;
 
     // ---------------------------------------------------------------------
@@ -119,6 +127,40 @@ public class AuthService {
                 requestedRole == RoleName.INSTRUCTOR
                         ? "Account created. Confirm your email, then an administrator will review your instructor access."
                         : "Account created. Check your email to confirm your address.");
+    }
+
+    /**
+     * Sends a fresh confirmation link, for the original one having expired or
+     * never arrived.
+     *
+     * <p>Same enumeration discipline as {@link #register}: always reports
+     * success, whatever address is submitted and whatever state the account
+     * is in. Looked up with {@link UserRepository#findActiveByEmail}, not
+     * {@link User#isActive()} — a pending instructor is exactly the case this
+     * exists for, and gating on {@code ACTIVE} status would exclude them.
+     */
+    @Transactional
+    public void resendVerification(String rawEmail) {
+        String email = rawEmail.trim().toLowerCase();
+
+        if (!rateLimiter.check("verify-resend:" + email, MAX_RESEND_REQUESTS, RESEND_WINDOW).allowed()) {
+            log.info("Verification resend throttled for an address");
+            return;
+        }
+
+        Optional<User> found = users.findActiveByEmail(email);
+        if (found.isEmpty()) {
+            log.info("Verification resend requested for an unknown address — reporting success anyway");
+            return;
+        }
+
+        User user = found.get();
+        if (user.isEmailVerified()) {
+            log.info("Verification resend requested for an already-verified account {}", user.getId());
+            return;
+        }
+
+        issueVerificationToken(user);
     }
 
     /**

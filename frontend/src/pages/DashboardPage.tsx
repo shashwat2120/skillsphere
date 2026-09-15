@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, GitBranch, Sparkles, Target } from 'lucide-react'
-import { api } from '@/lib/api'
+import { ArrowRight, GitBranch, Loader2, Sparkles, Target } from 'lucide-react'
+import { toast } from 'sonner'
+import { api, errorMessage } from '@/lib/api'
 import { useAuth } from '@/stores/auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -14,10 +16,20 @@ interface SkillRef {
 
 export function DashboardPage() {
   const user = useAuth((state) => state.user)
+  const [resent, setResent] = useState(false)
 
   const { data: ready, isLoading } = useQuery({
     queryKey: ['skills', 'ready'],
     queryFn: async () => (await api.get<SkillRef[]>('/skills/ready')).data,
+  })
+
+  const resendVerification = useMutation({
+    mutationFn: async () => api.post('/auth/resend-verification', { email: user?.email }),
+    onSuccess: () => {
+      toast.success('Confirmation email sent — check your inbox.')
+      setResent(true)
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not send the email.')),
   })
 
   const firstName = user?.fullName.split(' ')[0] ?? 'there'
@@ -36,10 +48,21 @@ export function DashboardPage() {
       </header>
 
       {/* Email verification is surfaced, not silently ignored — an unverified
-          account will hit a wall later, and finding out then is worse. */}
+          account will hit a wall later, and finding out then is worse. Now
+          actionable rather than just informative: there was previously no
+          way to request a new link if the original one was missed or expired. */}
       {user && !user.emailVerified && (
-        <div className="rounded-sq border border-decaying/30 bg-decaying-bg px-4 py-3 text-sm">
-          Confirm your email address to unlock verified evidence on your passport.
+        <div className="flex items-center justify-between gap-3 rounded-sq border border-decaying/30 bg-decaying-bg px-4 py-3 text-sm">
+          <span>Confirm your email address to unlock verified evidence on your passport.</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={resendVerification.isPending || resent}
+            onClick={() => resendVerification.mutate()}
+          >
+            {resendVerification.isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {resent ? 'Sent' : 'Resend link'}
+          </Button>
         </div>
       )}
 

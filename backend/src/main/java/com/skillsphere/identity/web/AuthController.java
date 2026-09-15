@@ -164,6 +164,17 @@ public class AuthController {
         return ResponseEntity.ok(new AuthDtos.MessageResponse("Email address confirmed."));
     }
 
+    @PostMapping("/resend-verification")
+    @Operation(summary = "Send a fresh confirmation link",
+            description = "For an original link that expired or never arrived. Always reports "
+                    + "success, whatever address is submitted — see AuthService for why.")
+    public ResponseEntity<AuthDtos.MessageResponse> resendVerification(
+            @Valid @RequestBody AuthDtos.ResendVerificationRequest request) {
+        authService.resendVerification(request.email());
+        return ResponseEntity.ok(new AuthDtos.MessageResponse(
+                "If that address needs confirming, a new link is on its way."));
+    }
+
     @GetMapping("/me")
     @Operation(summary = "The currently authenticated caller")
     public ResponseEntity<UserPrincipal> me(@AuthenticationPrincipal UserPrincipal principal) {
