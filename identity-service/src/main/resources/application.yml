@@ -8,23 +8,28 @@ spring:
   config:
     import: "optional:configserver:http://localhost:8888"
 
-  # Same physical database the monolith uses — an interim step, not the end
-  # state. True database-per-service (identity gets its own Postgres
-  # instance, the monolith drops every foreign key pointing at users(id))
-  # is the next increment once this app-level split is proven; doing both
-  # at once would mean verifying two large, unrelated risks together.
+  # identity_db — this service's own database, on the same local Postgres
+  # instance as every other service (zero new infrastructure; the pattern
+  # that matters is data ownership, not a separate physical server). Every
+  # other service's foreign keys pointing at users(id) were dropped from
+  # the shared skillsphere database in the same migration that created
+  # this one (backend's V18) — see that file's comment for why a plain
+  # unenforced user_id column is the right trade here, not a synchronous
+  # existence check on every write.
   datasource:
-    url: jdbc:postgresql://localhost:5432/skillsphere
+    url: jdbc:postgresql://localhost:5432/identity_db
     username: skillsphere
     password: skillsphere
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
 
+  flyway:
+    enabled: true
+
   jpa:
-    # validate, never update: this service does not own the schema in this
-    # interim arrangement, the monolith's Flyway does. Flyway itself is
-    # absent from this app entirely (see pom.xml) for the same reason.
+    # validate, never update: Flyway (this service's own now, see pom.xml)
+    # owns the schema; Hibernate only checks its entity mappings against it.
     hibernate:
       ddl-auto: validate
     open-in-view: false
@@ -44,6 +49,19 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    # Consumes admin-audit-events: assessment-service's skill-catalog admin
+    # actions arrive here instead of writing admin_audit_log directly, now
+    # that database-per-service means it can't reach this table any more —
+    # see AdminActionRecordedEvent's class comment.
+    consumer:
+      group-id: identity-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.skillsphere.identity.internal
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: com.skillsphere.identity.internal.AdminActionRecordedEvent
 
 eureka:
   client:
