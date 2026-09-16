@@ -68,6 +68,52 @@ resilience4j:
         base-config: default
       skillsphere-backend-cb:
         base-config: default
+  # Spring Cloud Gateway MVC's circuitBreaker() route filter also picks up a
+  # TimeLimiter from this same resilience4j-spring-boot3 autoconfiguration,
+  # by the same instance name as the breaker — and without this block, that
+  # meant every route silently ran under resilience4j's built-in DEFAULT
+  # TimeLimiterConfig, whose timeout-duration is exactly one second. That
+  # went unnoticed while every route only ever proxied fast calls; it broke
+  # for real the moment a call that is slow but legitimate went through the
+  # gateway — Argon2id-hashing ten MFA recovery codes takes several seconds
+  # under load, and verification-service's own OllamaClient is allowed up to
+  # 45s (ollama.timeout-seconds) for AI viva grading. Both were getting cut
+  # off by the gateway a full 6-40+ seconds before the service they were
+  # calling actually finished, DESPITE that service's own timeout being
+  # configured correctly — the caller had already given up and moved on to
+  # the fallback. This block gives each route enough room to let its own
+  # downstream timeout be the one that actually fires.
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 8s
+    instances:
+      identity-service-cb:
+        base-config: default
+        # MFA enrollment hashes ten recovery codes with Argon2id — deliberately
+        # memory-hard/slow, and 12s proved not enough headroom under a heavily
+        # loaded dev machine (observed up to ~14s). 30s costs nothing on the
+        # fast, common calls this same breaker also guards (login, register)
+        # since they return in milliseconds either way.
+        timeout-duration: 30s
+      verification-service-cb:
+        base-config: default
+        # Longer than ollama.timeout-seconds (45s) itself, so verification-
+        # service's own OllamaUnavailableException is what a caller sees on
+        # a genuine Ollama timeout, not this gateway giving up first.
+        timeout-duration: 50s
+      analytics-service-cb:
+        base-config: default
+      content-service-cb:
+        base-config: default
+      assessment-service-cb:
+        base-config: default
+      career-service-cb:
+        base-config: default
+      realtime-service-cb:
+        base-config: default
+      skillsphere-backend-cb:
+        base-config: default
 
 management:
   endpoints:
