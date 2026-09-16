@@ -1,8 +1,11 @@
 package com.skillsphere.identity.web;
 
 import com.skillsphere.identity.internal.AuthService;
+import com.skillsphere.identity.internal.MfaService;
 import com.skillsphere.identity.internal.PasswordResetService;
+import com.skillsphere.shared.error.ValidationException;
 import com.skillsphere.shared.security.ClientIp;
+import com.skillsphere.shared.security.CurrentUser;
 import com.skillsphere.shared.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -59,6 +62,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final PasswordResetService passwordResetService;
+    private final MfaService mfaService;
 
     @PostMapping("/register")
     @Operation(summary = "Create an account",
@@ -72,17 +76,24 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Authenticate",
             description = "Returns a short-lived access token in the body and sets the refresh token "
-                    + "as an httpOnly cookie.")
-    public ResponseEntity<AuthDtos.AuthResponse> login(
+                    + "as an httpOnly cookie — unless the account has MFA enabled, in which case this "
+                    + "returns a challenge (mfaRequired: true, mfaToken) instead, and no cookie is set. "
+                    + "Complete the login with POST /api/auth/mfa/verify.")
+    public ResponseEntity<?> login(
             @Valid @RequestBody AuthDtos.LoginRequest request,
             HttpServletRequest servletRequest) {
 
-        AuthService.LoginResult result = authService.login(
+        AuthService.LoginOutcome outcome = authService.login(
                 request, ClientIp.from(servletRequest), servletRequest.getHeader(HttpHeaders.USER_AGENT));
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken(), result.refreshTtl()).toString())
-                .body(result.response());
+        return switch (outcome) {
+            case AuthService.SessionIssued issued -> ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE,
+                            refreshCookie(issued.result().refreshToken(), issued.result().refreshTtl()).toString())
+                    .body(issued.result().response());
+            case AuthService.MfaRequired challenge -> ResponseEntity.ok(
+                    new AuthDtos.MfaChallengeResponse(true, challenge.mfaToken(), challenge.expiresAt()));
+        };
     }
 
     @PostMapping("/refresh")
@@ -181,6 +192,52 @@ public class AuthController {
         return principal == null
                 ? ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
                 : ResponseEntity.ok(principal);
+    }
+
+    // ------------------------------------------------------------------
+    // MFA — TOTP
+    // ------------------------------------------------------------------
+
+    @PostMapping("/mfa/totp/enroll")
+    @Operation(summary = "Start TOTP enrollment",
+            description = "Authenticated only. Generates a new secret and ten recovery codes and returns "
+                    + "them in plaintext — the only time either value is ever available. Confirm with "
+                    + "POST /api/auth/mfa/verify before the factor actually gates login.")
+    public ResponseEntity<AuthDtos.MfaEnrollResponse> enrollMfa(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(mfaService.enroll(CurrentUser.requireId()));
+    }
+
+    @PostMapping("/mfa/verify")
+    @Operation(summary = "Confirm a TOTP code",
+            description = "Two different moments share this endpoint. Called while authenticated (with "
+                    + "just `code`), it confirms an enrollment just started. Called while NOT authenticated "
+                    + "(with `mfaToken` from the login challenge, plus `code` or `recoveryCode`), it "
+                    + "completes that login and returns a full session, exactly like POST /api/auth/login.")
+    public ResponseEntity<AuthDtos.MfaVerifyResponse> verifyMfa(
+            @Valid @RequestBody AuthDtos.MfaVerifyRequest request,
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletRequest servletRequest) {
+
+        if (principal != null) {
+            if (request.code() == null || request.code().isBlank()) {
+                throw new ValidationException("MFA_CODE_REQUIRED", "A code is required.");
+            }
+            mfaService.confirmEnrollment(principal.id(), request.code());
+            return ResponseEntity.ok(new AuthDtos.MfaVerifyResponse(true, null));
+        }
+
+        if (request.mfaToken() == null || request.mfaToken().isBlank()) {
+            throw new ValidationException("MFA_TOKEN_REQUIRED",
+                    "mfaToken is required to complete a login.");
+        }
+
+        AuthService.LoginResult result = mfaService.verifyLogin(
+                request.mfaToken(), request.code(), request.recoveryCode(),
+                ClientIp.from(servletRequest), servletRequest.getHeader(HttpHeaders.USER_AGENT));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie(result.refreshToken(), result.refreshTtl()).toString())
+                .body(new AuthDtos.MfaVerifyResponse(true, result.response()));
     }
 
     // ------------------------------------------------------------------

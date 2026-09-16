@@ -76,6 +76,23 @@ public class SecurityConfig {
                                          "/api/auth/refresh", "/api/auth/verify-email",
                                          "/api/auth/forgot-password", "/api/auth/reset-password")
                             .permitAll()
+                        // mfa/verify serves two callers: an authenticated user
+                        // confirming enrollment, and someone mid-login who is
+                        // not authenticated yet and is presenting the
+                        // short-lived challenge token from /api/auth/login
+                        // instead — MfaService/AuthController tell the two
+                        // apart, so this cannot require authentication here.
+                        .requestMatchers("/api/auth/mfa/verify").permitAll()
+                        // A passkey IS a login method, so completing one
+                        // cannot itself require being logged in already.
+                        // Registering a new passkey (register/options,
+                        // register) stays out of this list on purpose —
+                        // that only makes sense for an account you can
+                        // already sign in to, and falls through to the
+                        // authenticated default below.
+                        .requestMatchers("/api/auth/passkey/authenticate/options",
+                                         "/api/auth/passkey/authenticate")
+                            .permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         // Scraped by Prometheus (see monitoring/prometheus/prometheus.yml), which
                         // only reaches this port from inside the Docker Desktop host bridge on

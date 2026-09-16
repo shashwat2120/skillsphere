@@ -19,6 +19,20 @@ public final class AdminUserDtos {
             Instant appliedAt) {
     }
 
+    /**
+     * The instructor_applications-backed version of {@link PendingInstructor}
+     * — carries {@code applicationId} in addition, since approve/reject act
+     * on the user id but the application itself is now a distinct record.
+     */
+    public record PendingApplication(
+            Long applicationId,
+            Long userId,
+            String email,
+            String fullName,
+            boolean emailVerified,
+            Instant appliedAt) {
+    }
+
     public record UserSummary(
             Long id,
             String email,

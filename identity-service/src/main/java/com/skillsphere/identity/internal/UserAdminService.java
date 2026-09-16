@@ -1,6 +1,8 @@
 package com.skillsphere.identity.internal;
 
 import com.skillsphere.identity.domain.AccountStatus;
+import com.skillsphere.identity.domain.InstructorApplication;
+import com.skillsphere.identity.domain.InstructorApplicationRepository;
 import com.skillsphere.identity.domain.RefreshToken;
 import com.skillsphere.identity.domain.RoleName;
 import com.skillsphere.identity.domain.User;
@@ -20,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Administrative control over accounts.
@@ -39,6 +42,7 @@ public class UserAdminService {
     private final SessionRevoker sessionRevoker;
     private final ApplicationEventPublisher events;
     private final AuditLogger auditLogger;
+    private final InstructorApplicationRepository instructorApplications;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional(readOnly = true)
@@ -50,6 +54,38 @@ public class UserAdminService {
                 .map(user -> new AdminUserDtos.PendingInstructor(
                         user.getId(), user.getEmail(), user.getFullName(),
                         user.isEmailVerified(), user.getCreatedAt()))
+                .toList();
+    }
+
+    /**
+     * The same queue as {@link #listPendingInstructors}, read from
+     * {@code instructor_applications} instead of inferring it from
+     * {@code users.status}. Supplements rather than replaces the method
+     * above — this one also carries {@code applicationId}, so a caller can
+     * distinguish "never applied" from "applied, still pending" for an
+     * account that predates this table.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminUserDtos.PendingApplication> listPendingApplications() {
+        List<InstructorApplication> pending = instructorApplications
+                .findByStatusOrderByAppliedAtAsc(InstructorApplication.Status.PENDING);
+
+        Map<Long, User> applicants = users.findAllById(
+                        pending.stream().map(InstructorApplication::getUserId).distinct().toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
+
+        return pending.stream()
+                .map(application -> {
+                    User user = applicants.get(application.getUserId());
+                    return new AdminUserDtos.PendingApplication(
+                            application.getId(),
+                            application.getUserId(),
+                            user == null ? "unknown" : user.getEmail(),
+                            user == null ? "unknown" : user.getFullName(),
+                            user != null && user.isEmailVerified(),
+                            application.getAppliedAt());
+                })
                 .toList();
     }
 
@@ -85,6 +121,13 @@ public class UserAdminService {
         auditLogger.record("INSTRUCTOR_APPROVED", "USER", userId,
                 statusJson(AccountStatus.PENDING), statusJson(AccountStatus.ACTIVE), null);
 
+        // Backs the status flip above with a durable record of the decision —
+        // see InstructorApplication's class comment for why both exist.
+        findPendingApplication(userId).ifPresentOrElse(
+                application -> application.approve(approvedByAdminId),
+                () -> log.warn("No instructor_applications row found for user {} on approval — "
+                        + "the account predates this table or applied before it existed", userId));
+
         events.publishEvent(new InstructorApproved(
                 user.getId(), user.getEmail(), user.getFullName()));
     }
@@ -104,6 +147,24 @@ public class UserAdminService {
         log.info("Instructor application {} rejected by admin {}: {}", userId, adminId, reason);
         auditLogger.record("INSTRUCTOR_REJECTED", "USER", userId,
                 statusJson(AccountStatus.PENDING), statusJson(AccountStatus.SUSPENDED), reason);
+
+        findPendingApplication(userId).ifPresentOrElse(
+                application -> application.reject(adminId, reason),
+                () -> log.warn("No instructor_applications row found for user {} on rejection — "
+                        + "the account predates this table or applied before it existed", userId));
+    }
+
+    /**
+     * The application currently awaiting a decision for a user, if any.
+     *
+     * <p>Looks at the most recent row rather than assuming exactly one exists:
+     * a rejected applicant who reapplies gets a second {@code PENDING} row
+     * without disturbing the first, which is what lets the earlier rejection
+     * stay on the record.
+     */
+    private java.util.Optional<InstructorApplication> findPendingApplication(Long userId) {
+        return instructorApplications.findFirstByUserIdOrderByAppliedAtDesc(userId)
+                .filter(application -> application.getStatus() == InstructorApplication.Status.PENDING);
     }
 
     /**

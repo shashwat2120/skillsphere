@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -39,6 +40,13 @@ public class JwtService {
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_TOKEN_TYPE = "typ";
     private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_MFA_PENDING = "mfa_pending";
+
+    // Deliberately short: this token proves only "the password check just
+    // passed," not "this person is signed in." A long lifetime would turn a
+    // captured challenge token into a standing invitation to brute-force the
+    // TOTP code at leisure.
+    private static final Duration MFA_CHALLENGE_TTL = Duration.ofMinutes(5);
 
     private final JwtProperties properties;
     private final SecretKey signingKey;
@@ -116,6 +124,53 @@ public class JwtService {
             // Deliberately terse: the message can echo attacker-supplied input,
             // and a failed parse tells us nothing worth an error-level log.
             log.debug("Access token rejected: {}", ex.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Issues the short-lived token a caller must present back to
+     * {@code /api/auth/mfa/verify} to finish a login that requires a second
+     * factor. Deliberately carries no roles or email — it authorises exactly
+     * one thing (continuing this specific login) and nothing else, so it
+     * cannot be mistaken for an access token by any endpoint that forgets to
+     * check {@code typ}.
+     */
+    public IssuedToken issueMfaChallenge(Long userId) {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(MFA_CHALLENGE_TTL);
+        String tokenId = UUID.randomUUID().toString();
+
+        String token = Jwts.builder()
+                .id(tokenId)
+                .subject(String.valueOf(userId))
+                .issuer(properties.issuer())
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .claim(CLAIM_TOKEN_TYPE, TYPE_MFA_PENDING)
+                .signWith(signingKey)
+                .compact();
+
+        return new IssuedToken(token, tokenId, expiry);
+    }
+
+    /** @return the pending user's id, or empty if the token is invalid, expired, or not an MFA challenge. */
+    public Optional<Long> parseMfaChallenge(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(signingKey)
+                    .requireIssuer(properties.issuer())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            if (!TYPE_MFA_PENDING.equals(claims.get(CLAIM_TOKEN_TYPE, String.class))) {
+                log.debug("Rejected token with unexpected type where an MFA challenge was expected");
+                return Optional.empty();
+            }
+            return Optional.of(Long.valueOf(claims.getSubject()));
+        } catch (JwtException | IllegalArgumentException ex) {
+            log.debug("MFA challenge token rejected: {}", ex.getClass().getSimpleName());
             return Optional.empty();
         }
     }

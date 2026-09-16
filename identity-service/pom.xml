@@ -29,6 +29,7 @@
         <jjwt.version>0.13.0</jjwt.version>
         <springdoc.version>3.1.1</springdoc.version>
         <bouncycastle.version>1.86</bouncycastle.version>
+        <webauthn4j.version>0.29.1.RELEASE</webauthn4j.version>
         <spring-cloud.version>2025.1.2</spring-cloud.version>
     </properties>
 
@@ -162,6 +163,16 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
             <version>${bouncycastle.version}</version>
+        </dependency>
+        <!-- Passkeys / WebAuthn (SKILLSPHERE.md §6) — verifies the registration
+             (attestation) and authentication (assertion) ceremonies against the
+             FIDO2/WebAuthn spec. Nothing here is a stub: WebAuthnManager does
+             real signature and challenge verification against stored public
+             keys, the same job it does in production deployments. -->
+        <dependency>
+            <groupId>com.webauthn4j</groupId>
+            <artifactId>webauthn4j-core</artifactId>
+            <version>${webauthn4j.version}</version>
         </dependency>
 
         <!-- ==================== JWT ==================== -->

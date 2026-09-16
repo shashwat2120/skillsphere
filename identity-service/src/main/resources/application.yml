@@ -100,3 +100,11 @@ skillsphere:
       login-attempts-per-hour: 20
     cors:
       allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+    # Passkeys (SKILLSPHERE.md §6). rp-id must be the frontend's own domain —
+    # "localhost" for the Vite dev server on http://localhost:5173 — and
+    # origin must match exactly what the browser reports, scheme and port
+    # included, or every ceremony fails verification by design of the spec.
+    webauthn:
+      rp-id: ${WEBAUTHN_RP_ID:localhost}
+      rp-name: SkillSphere
+      origin: ${WEBAUTHN_ORIGIN:http://localhost:5173}

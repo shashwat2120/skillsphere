@@ -3,6 +3,10 @@ package com.skillsphere.identity.internal;
 import com.skillsphere.identity.domain.AccountStatus;
 import com.skillsphere.identity.domain.EmailVerificationToken;
 import com.skillsphere.identity.domain.EmailVerificationTokenRepository;
+import com.skillsphere.identity.domain.InstructorApplication;
+import com.skillsphere.identity.domain.InstructorApplicationRepository;
+import com.skillsphere.identity.domain.MfaTotp;
+import com.skillsphere.identity.domain.MfaTotpRepository;
 import com.skillsphere.identity.domain.RefreshToken;
 import com.skillsphere.identity.domain.RefreshTokenRepository;
 import com.skillsphere.identity.domain.Role;
@@ -73,6 +77,9 @@ public class AuthService {
     private final LoginAttemptService loginAttempts;
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher events;
+    private final HaveIBeenPwnedService haveIBeenPwned;
+    private final InstructorApplicationRepository instructorApplications;
+    private final MfaTotpRepository mfaTotps;
 
     // ---------------------------------------------------------------------
     // Registration
@@ -101,6 +108,15 @@ public class AuthService {
                     "That registration could not be completed.");
         }
 
+        // Breached-password check (SKILLSPHERE.md §6). Checked before hashing —
+        // hashing the value first would gain nothing since Argon2id is a
+        // one-way function, so there is no reason to pay its cost on a
+        // password we are about to reject anyway.
+        if (haveIBeenPwned.isPwned(request.password())) {
+            throw new ValidationException("PASSWORD_BREACHED",
+                    "This password has appeared in a known data breach — choose another.");
+        }
+
         User user = new User(request.email(), request.fullName().trim());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
 
@@ -116,6 +132,12 @@ public class AuthService {
         user.addRole(role);
 
         users.save(user);
+
+        // A durable application record, separate from the status flip above —
+        // see InstructorApplication's class comment for why both exist.
+        if (requestedRole == RoleName.INSTRUCTOR) {
+            instructorApplications.save(new InstructorApplication(user.getId()));
+        }
 
         issueVerificationToken(user);
 
@@ -212,7 +234,7 @@ public class AuthService {
     // ---------------------------------------------------------------------
 
     @Transactional
-    public LoginResult login(AuthDtos.LoginRequest request, String ipAddress, String userAgent) {
+    public LoginOutcome login(AuthDtos.LoginRequest request, String ipAddress, String userAgent) {
         String email = request.email().trim().toLowerCase();
 
         // Checked before any password work. Verifying first would let a blocked
@@ -271,7 +293,18 @@ public class AuthService {
         loginAttempts.recordSuccess(email);
         user.setLastLoginAt(Instant.now());
 
-        return issueSession(user, ipAddress, userAgent);
+        // A confirmed TOTP enrollment gates the session behind a second
+        // factor. The password alone is not enough to finish login — the
+        // caller gets a short-lived challenge token instead of tokens, and
+        // must complete /api/auth/mfa/verify to actually receive them.
+        Optional<MfaTotp> mfa = mfaTotps.findById(user.getId());
+        if (mfa.isPresent() && mfa.get().isEnabled()) {
+            JwtService.IssuedToken challenge = jwtService.issueMfaChallenge(user.getId());
+            log.info("Login for user {} completed password check — MFA challenge issued", user.getId());
+            return new MfaRequired(challenge.token(), challenge.expiresAt());
+        }
+
+        return new SessionIssued(issueSession(user, ipAddress, userAgent));
     }
 
     /**
@@ -303,7 +336,10 @@ public class AuthService {
     // Session issue and refresh
     // ---------------------------------------------------------------------
 
-    private LoginResult issueSession(User user, String ipAddress, String userAgent) {
+    // Package-private rather than private: MfaService (same package) calls
+    // this directly to issue the session once a second factor has been
+    // verified, so the token-issuing logic exists in exactly one place.
+    LoginResult issueSession(User user, String ipAddress, String userAgent) {
         List<String> authorities = user.getRoles().stream().map(Role::authority).toList();
 
         JwtService.IssuedToken access =
@@ -436,5 +472,26 @@ public class AuthService {
 
     /** Carries the refresh token separately so the web layer can place it in a cookie. */
     public record LoginResult(AuthDtos.AuthResponse response, String refreshToken, Duration refreshTtl) {
+    }
+
+    /**
+     * What {@link #login} produces: either a finished session, or a demand for
+     * a second factor. Sealed so {@link com.skillsphere.identity.web.AuthController}
+     * is forced by the compiler to handle both — there is no default branch to
+     * accidentally issue tokens without checking which one came back.
+     */
+    public sealed interface LoginOutcome permits SessionIssued, MfaRequired {
+    }
+
+    public record SessionIssued(LoginResult result) implements LoginOutcome {
+    }
+
+    /**
+     * @param mfaToken  short-lived proof the password check already passed —
+     *                  presented back to {@code /api/auth/mfa/verify} along
+     *                  with the 6-digit code or a recovery code
+     * @param expiresAt when the challenge itself expires, independent of the code's own validity
+     */
+    public record MfaRequired(String mfaToken, java.time.Instant expiresAt) implements LoginOutcome {
     }
 }

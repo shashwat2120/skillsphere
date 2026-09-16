@@ -66,6 +66,7 @@ public class PasswordResetService {
     private final SessionRevoker sessionRevoker;
     private final RateLimiter rateLimiter;
     private final ApplicationEventPublisher events;
+    private final HaveIBeenPwnedService haveIBeenPwned;
 
     /**
      * Starts a reset. Always succeeds from the caller's point of view.
@@ -132,6 +133,10 @@ public class PasswordResetService {
         if (newPassword == null || newPassword.length() < MIN_PASSWORD_LENGTH) {
             throw new ValidationException("PASSWORD_TOO_SHORT",
                     "Password must be at least " + MIN_PASSWORD_LENGTH + " characters.");
+        }
+        if (haveIBeenPwned.isPwned(newPassword)) {
+            throw new ValidationException("PASSWORD_BREACHED",
+                    "This password has appeared in a known data breach — choose another.");
         }
 
         PasswordResetToken token = tokens.findByTokenHash(tokenGenerator.hash(presentedToken))

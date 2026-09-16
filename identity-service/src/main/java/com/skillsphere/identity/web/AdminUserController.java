@@ -44,6 +44,14 @@ public class AdminUserController {
         return userAdmin.listPendingInstructors();
     }
 
+    @GetMapping("/pending-applications")
+    @Operation(summary = "Instructor applications awaiting a decision",
+            description = "The same queue as pending-instructors, read from the instructor_applications "
+                    + "table instead of inferred from account status — carries applicationId.")
+    public List<AdminUserDtos.PendingApplication> pendingApplications() {
+        return userAdmin.listPendingApplications();
+    }
+
     @PostMapping("/{id}/approve-instructor")
     @Operation(summary = "Grant instructor access",
             description = "Requires a confirmed email address. Approving an unverified account "

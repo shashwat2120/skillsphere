@@ -97,4 +97,60 @@ public final class AuthDtos {
 
     public record MessageResponse(String message) {
     }
+
+    // -------------------------------------------------------------------
+    // MFA — TOTP (SKILLSPHERE.md §6, §12)
+    // -------------------------------------------------------------------
+
+    /**
+     * Returned once, at enrollment. {@code secret} and {@code recoveryCodes}
+     * never appear in any other response — only their encrypted/hashed forms
+     * are ever persisted, so this is the caller's only chance to record them.
+     *
+     * @param secret         Base32, for an app that cannot scan a QR code
+     * @param provisioningUri {@code otpauth://} URI — the frontend renders this as a QR code
+     * @param recoveryCodes  ten single-use fallback codes
+     */
+    public record MfaEnrollResponse(
+            String secret,
+            String provisioningUri,
+            List<String> recoveryCodes) {
+    }
+
+    /**
+     * A login that requires a second factor gets this instead of an
+     * {@link AuthResponse} — no tokens, and no refresh cookie is set. The
+     * caller completes the session with {@code mfaToken} plus a code at
+     * {@code POST /api/auth/mfa/verify}.
+     */
+    public record MfaChallengeResponse(
+            boolean mfaRequired,
+            String mfaToken,
+            Instant expiresAt) {
+    }
+
+    /**
+     * Serves both moments {@code /api/auth/mfa/verify} handles.
+     *
+     * <p>Confirming an enrollment (caller already authenticated): only
+     * {@code code} is used. Completing a login (caller not authenticated
+     * yet): {@code mfaToken} plus exactly one of {@code code} or
+     * {@code recoveryCode}.
+     */
+    public record MfaVerifyRequest(
+            String mfaToken,
+            @Size(max = 20) String code,
+            @Size(max = 20) String recoveryCode) {
+    }
+
+    /**
+     * @param verified whether the code was accepted
+     * @param session  present only when this call completed a login — absent
+     *                 for an enrollment confirmation, which has no session to
+     *                 issue since the caller was already signed in
+     */
+    public record MfaVerifyResponse(
+            boolean verified,
+            AuthResponse session) {
+    }
 }
