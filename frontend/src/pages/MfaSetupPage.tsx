@@ -29,6 +29,11 @@ export function MfaSetupPage() {
   const [enrollment, setEnrollment] = useState<MfaEnrollResponse | null>(null)
   const [code, setCode] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Guards against a second enroll request firing before the isPending flag
+  // from the first has propagated through a re-render — each call replaces
+  // the server's secret/recovery codes, so two in flight at once would let
+  // the response the user never sees be the one that ends up stored.
+  const enrollRequested = useRef(false)
 
   const enroll = useMutation({
     mutationFn: async () => (await api.post<MfaEnrollResponse>('/auth/mfa/totp/enroll')).data,
@@ -36,8 +41,17 @@ export function MfaSetupPage() {
       setEnrollment(data)
       setStep('confirm')
     },
-    onError: (error) => toast.error(errorMessage(error, 'Could not start enrollment.')),
+    onError: (error) => {
+      enrollRequested.current = false
+      toast.error(errorMessage(error, 'Could not start enrollment.'))
+    },
   })
+
+  function startEnrollment() {
+    if (enrollRequested.current) return
+    enrollRequested.current = true
+    enroll.mutate()
+  }
 
   const confirm = useMutation({
     mutationFn: async () => api.post('/auth/mfa/verify', { code }),
@@ -78,7 +92,7 @@ export function MfaSetupPage() {
             You will need an authenticator app — Google Authenticator, 1Password, Authy, or similar — on
             your phone or computer to scan a QR code.
           </p>
-          <Button className="mt-4" disabled={enroll.isPending} onClick={() => enroll.mutate()}>
+          <Button className="mt-4" disabled={enroll.isPending} onClick={startEnrollment}>
             {enroll.isPending && <Loader2 className="size-4 animate-spin" />}
             {enroll.isPending ? 'Starting…' : 'Set up an authenticator app'}
           </Button>
