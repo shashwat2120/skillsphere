@@ -4,12 +4,15 @@ import { motion } from 'framer-motion'
 import {
   ChevronDown,
   Loader2,
+  Pencil,
   Plus,
+  Save,
   ShieldCheck,
   ShieldX,
   Trash2,
   UserCheck,
   UserX,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, errorMessage } from '@/lib/api'
@@ -21,6 +24,24 @@ interface PendingInstructor {
   fullName: string
   emailVerified: boolean
   appliedAt: string
+}
+
+/** The instructor_applications-backed version — carries applicationId in addition. */
+interface PendingApplication {
+  applicationId: number
+  userId: number
+  email: string
+  fullName: string
+  emailVerified: boolean
+  appliedAt: string
+}
+
+/** PlatformSettingsDtos.SettingView — `value` is arbitrary JSON, opaque by design. */
+interface PlatformSetting {
+  key: string
+  value: unknown
+  updatedBy: number | null
+  updatedAt: string
 }
 
 interface UserSummary {
@@ -74,7 +95,7 @@ interface SkillGraphNode {
   directUnlocks: SkillRef[]
 }
 
-type View = 'users' | 'audit' | 'skills'
+type View = 'users' | 'audit' | 'skills' | 'settings'
 
 const STATUS_TONE: Record<UserSummary['status'], string> = {
   ACTIVE: 'mastered',
@@ -118,12 +139,16 @@ export function AdminPage() {
           <ToggleButton active={view === 'skills'} onClick={() => setView('skills')}>
             Skills
           </ToggleButton>
+          <ToggleButton active={view === 'settings'} onClick={() => setView('settings')}>
+            Settings
+          </ToggleButton>
         </div>
       </header>
 
       {view === 'users' && <UsersView />}
       {view === 'audit' && <AuditView />}
       {view === 'skills' && <SkillsView />}
+      {view === 'settings' && <SettingsView />}
     </div>
   )
 }
@@ -163,6 +188,16 @@ function UsersView() {
       (await api.get<PendingInstructor[]>('/admin/users/pending-instructors')).data,
   })
 
+  // Same queue, read from instructor_applications instead of inferred from
+  // account status — carries applicationId, which pending-instructors above
+  // does not. Joined in below purely to surface that id next to each row.
+  const { data: applications } = useQuery({
+    queryKey: ['admin', 'pending-applications'],
+    queryFn: async () =>
+      (await api.get<PendingApplication[]>('/admin/users/pending-applications')).data,
+  })
+  const applicationIdByUserId = new Map(applications?.map((a) => [a.userId, a.applicationId]))
+
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: async () => (await api.get<UserSummary[]>('/admin/users')).data,
@@ -170,6 +205,7 @@ function UsersView() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin', 'pending-instructors'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'pending-applications'] })
     queryClient.invalidateQueries({ queryKey: ['admin', 'users'] })
   }
 
@@ -223,7 +259,14 @@ function UsersView() {
                 className="flex items-center gap-3 rounded-sq border border-line bg-surface px-4 py-3"
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{p.fullName}</p>
+                  <p className="text-sm font-medium">
+                    {p.fullName}
+                    {applicationIdByUserId.has(p.id) && (
+                      <span className="ml-1.5 font-mono text-[11px] font-normal text-fg-subtle">
+                        #{applicationIdByUserId.get(p.id)}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-fg-subtle">
                     {p.email} · applied {new Date(p.appliedAt).toLocaleDateString()}
                     {!p.emailVerified && ' · email not verified'}
@@ -816,6 +859,218 @@ function SkillRow({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------
+// Platform settings
+// -----------------------------------------------------------------------
+
+/**
+ * A key/value editor over platform_settings, per PlatformSettingsController:
+ * GET /admin/settings lists every row, PUT /admin/settings/{key} upserts one.
+ * A value is arbitrary JSON — this is an admin utility, not a form builder,
+ * so each value is edited as raw JSON text rather than reshaping every
+ * possible setting shape into typed inputs.
+ */
+function SettingsView() {
+  const queryClient = useQueryClient()
+  const [creatingKey, setCreatingKey] = useState('')
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['admin', 'settings'],
+    queryFn: async () => (await api.get<PlatformSetting[]>('/admin/settings')).data,
+  })
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] })
+
+  const upsert = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: unknown }) =>
+      api.put(`/admin/settings/${encodeURIComponent(key)}`, { value }),
+    onSuccess: () => {
+      toast.success('Setting saved.')
+      invalidate()
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Could not save that setting.')),
+  })
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="legend">Platform settings {settings ? `(${settings.length})` : ''}</h2>
+      </div>
+
+      {isLoading && <div className="skeleton h-40 w-full rounded-sq-lg" />}
+
+      {!isLoading && !settings?.length && !creatingKey && (
+        <div className="mb-3 rounded-sq border border-dashed border-line py-10 text-center text-sm text-fg-muted">
+          No settings configured yet.
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {settings?.map((s) => (
+          <SettingRow
+            key={s.key}
+            setting={s}
+            onSave={(value) => upsert.mutate({ key: s.key, value })}
+            saving={upsert.isPending}
+          />
+        ))}
+      </div>
+
+      <div className="mt-4">
+        {creatingKey === '' ? (
+          <Button size="sm" variant="outline" onClick={() => setCreatingKey(' ')}>
+            <Plus className="size-3.5" /> New setting
+          </Button>
+        ) : (
+          <NewSettingForm
+            onCreate={(key, value) => {
+              upsert.mutate({ key, value })
+              setCreatingKey('')
+            }}
+            onCancel={() => setCreatingKey('')}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function NewSettingForm({
+  onCreate,
+  onCancel,
+}: {
+  onCreate: (key: string, value: unknown) => void
+  onCancel: () => void
+}) {
+  const [key, setKey] = useState('')
+  const [valueText, setValueText] = useState('""')
+  const [jsonError, setJsonError] = useState(false)
+
+  return (
+    <div className="grid grid-cols-[1fr_2fr_auto] items-start gap-2 rounded-sq border border-line bg-surface p-3">
+      <input
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        placeholder="setting.key"
+        className={inputClass}
+      />
+      <input
+        value={valueText}
+        onChange={(e) => {
+          setValueText(e.target.value)
+          setJsonError(false)
+        }}
+        placeholder='JSON value, e.g. "on" or {"enabled":true}'
+        className={inputClass + (jsonError ? ' border-danger' : '')}
+      />
+      <div className="flex gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!key.trim()}
+          onClick={() => {
+            try {
+              const value = JSON.parse(valueText)
+              onCreate(key.trim(), value)
+            } catch {
+              setJsonError(true)
+            }
+          }}
+        >
+          <Save className="size-3.5" />
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          <X className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function SettingRow({
+  setting,
+  onSave,
+  saving,
+}: {
+  setting: PlatformSetting
+  onSave: (value: unknown) => void
+  saving: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [valueText, setValueText] = useState(JSON.stringify(setting.value, null, 2))
+  const [jsonError, setJsonError] = useState(false)
+
+  return (
+    <div className="rounded-sq border border-line bg-surface px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-sm font-medium">{setting.key}</p>
+          <p className="text-xs text-fg-subtle">
+            updated {new Date(setting.updatedAt).toLocaleString()}
+            {setting.updatedBy != null && ` by admin #${setting.updatedBy}`}
+          </p>
+        </div>
+        {!editing && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setValueText(JSON.stringify(setting.value, null, 2))
+              setJsonError(false)
+              setEditing(true)
+            }}
+          >
+            <Pencil className="size-3.5" /> Edit
+          </Button>
+        )}
+      </div>
+
+      {!editing ? (
+        <pre className="mt-2 overflow-x-auto rounded-sq bg-bg-sunken p-2 text-[11px] text-fg-muted">
+          {JSON.stringify(setting.value, null, 2)}
+        </pre>
+      ) : (
+        <div className="mt-2 space-y-2">
+          <textarea
+            value={valueText}
+            onChange={(e) => {
+              setValueText(e.target.value)
+              setJsonError(false)
+            }}
+            rows={4}
+            className={
+              'w-full rounded-sq border bg-bg px-2.5 py-1.5 font-mono text-xs outline-none focus:border-line-strong ' +
+              (jsonError ? 'border-danger' : 'border-line')
+            }
+          />
+          {jsonError && <p className="text-xs text-danger">That is not valid JSON.</p>}
+          <div className="flex gap-1.5">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={saving}
+              onClick={() => {
+                try {
+                  const value = JSON.parse(valueText)
+                  onSave(value)
+                  setEditing(false)
+                } catch {
+                  setJsonError(true)
+                }
+              }}
+            >
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />} Save
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
           </div>
         </div>
       )}

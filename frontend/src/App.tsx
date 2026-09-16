@@ -20,6 +20,9 @@ import { ArenasPage } from '@/pages/ArenasPage'
 import { ArenaHostPage } from '@/pages/ArenaHostPage'
 import { ArenaPlayPage } from '@/pages/ArenaPlayPage'
 import { AnalyticsDashboardPage } from '@/pages/AnalyticsDashboardPage'
+import { WhatIfSimulatorPage } from '@/pages/WhatIfSimulatorPage'
+import { MfaSetupPage } from '@/pages/MfaSetupPage'
+import { PasskeySetupPage } from '@/pages/PasskeySetupPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { InstructorStudioPage } from '@/pages/InstructorStudioPage'
 import { Loader2 } from 'lucide-react'
@@ -137,6 +140,9 @@ export default function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectWorkspacePage />} />
           <Route path="/passport" element={<PassportPage />} />
+          <Route path="/what-if" element={<WhatIfSimulatorPage />} />
+          <Route path="/settings/mfa" element={<MfaSetupPage />} />
+          <Route path="/settings/passkeys" element={<PasskeySetupPage />} />
           <Route path="/arenas" element={<ArenasPage />} />
           <Route path="/arenas/:arenaId" element={<ArenaHostPage />} />
           <Route

@@ -10,6 +10,32 @@ export interface User {
   roles: string[]
 }
 
+/** Matches AuthDtos.AuthResponse on the backend — a normal, complete session. */
+export interface AuthSession {
+  accessToken: string
+  tokenType: string
+  expiresAt: string
+  user: User
+}
+
+/**
+ * Matches AuthDtos.MfaChallengeResponse. Returned by POST /auth/login instead
+ * of an {@link AuthSession} when the account has MFA enabled — no tokens, no
+ * refresh cookie. The caller completes the login with `mfaToken` plus a code
+ * at POST /api/auth/mfa/verify (see {@link AuthState.completeMfaLogin}).
+ */
+export interface MfaChallenge {
+  mfaRequired: true
+  mfaToken: string
+  expiresAt: string
+}
+
+export type LoginOutcome = { mfaRequired: false } | MfaChallenge
+
+function isMfaChallenge(data: AuthSession | MfaChallenge): data is MfaChallenge {
+  return (data as MfaChallenge).mfaRequired === true
+}
+
 interface AuthState {
   user: User | null
   /**
@@ -21,7 +47,19 @@ interface AuthState {
    * reading `user` directly.
    */
   initialising: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<LoginOutcome>
+  /**
+   * Completes a login POST /auth/login paused for a second factor. Exactly
+   * one of `code`/`recoveryCode` should be supplied — the caller (MfaSetupPage
+   * or LoginPage's second step) is responsible for that.
+   */
+  completeMfaLogin: (mfaToken: string, code?: string, recoveryCode?: string) => Promise<void>
+  /**
+   * Adopts an already-issued session — used by the passkey sign-in flow,
+   * which authenticates entirely outside `login` (no password, no MFA
+   * challenge) but ends up with the exact same {@link AuthSession} shape.
+   */
+  setSession: (session: AuthSession) => void
   register: (input: RegisterInput) => Promise<{ status: string; message: string }>
   logout: () => Promise<void>
   restore: () => Promise<void>
@@ -39,9 +77,30 @@ export const useAuth = create<AuthState>((set) => ({
   initialising: true,
 
   login: async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password })
+    const { data } = await api.post<AuthSession | MfaChallenge>('/auth/login', { email, password })
+    if (isMfaChallenge(data)) {
+      // No tokens, no refresh cookie — the caller (LoginPage) shows the
+      // second-factor step and finishes with completeMfaLogin.
+      return data
+    }
     setAccessToken(data.accessToken)
     set({ user: data.user })
+    return { mfaRequired: false }
+  },
+
+  completeMfaLogin: async (mfaToken, code, recoveryCode) => {
+    const { data } = await api.post<{ verified: boolean; session: AuthSession }>('/auth/mfa/verify', {
+      mfaToken,
+      code,
+      recoveryCode,
+    })
+    setAccessToken(data.session.accessToken)
+    set({ user: data.session.user })
+  },
+
+  setSession: (session) => {
+    setAccessToken(session.accessToken)
+    set({ user: session.user })
   },
 
   register: async (input) => {
