@@ -24,22 +24,27 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
  * The live arena, start to finish.
  *
- * <p><b>Leaderboard reads from Postgres, not Redis.</b> The schema's own
- * comment names a Redis sorted set as the eventual answer for "would be the
- * bottleneck under per-answer live load" — a production concern at a scale
- * this project's demo classrooms don't reach. {@code idx_ap_arena_score}
- * already makes {@code findByArenaIdOrderByScoreDesc} an index scan; adding
- * a second, eventually-consistent store to keep in sync with the durable
- * record would be complexity spent on a problem this deployment doesn't
- * have. The interface this service exposes doesn't change if that ever
- * stops being true.
+ * <p><b>Leaderboard reads from Redis, not Postgres.</b> {@code
+ * arena_participants.score} stays the durable record — every scored answer
+ * still writes it in the same transaction as {@code arena_answers} — but the
+ * per-answer live reads (STOMP {@code /leaderboard} broadcasts, and the REST
+ * fallback for a fresh page load) come from the {@code arena:{id}:leaderboard}
+ * Redis sorted set that {@link ArenaLeaderboardService} maintains, per the
+ * spec's "Live leaderboard state lives in Redis sorted sets, not Postgres."
+ * A cold arena (no scored answers yet) or an unreachable Redis both look like
+ * an empty sorted set, so {@link #currentLeaderboard} falls back to the
+ * Postgres {@code ORDER BY} in either case — always correct, just not the
+ * fast path.
  *
  * <p><b>Advancing between questions is instructor-driven, not a server
  * timer.</b> A human running a live session already paces it — waiting for
@@ -63,6 +68,7 @@ public class ArenaService {
     private final ArenaItemSource itemSource;
     private final SkillLookup skillLookup;
     private final ConfusionDetectionService confusionDetection;
+    private final ArenaLeaderboardService liveLeaderboard;
     private final SimpMessagingTemplate broker;
     private final Random random = new SecureRandom();
 
@@ -123,7 +129,7 @@ public class ArenaService {
 
     @Transactional(readOnly = true)
     public List<ParticipantView> leaderboard(Long arenaId) {
-        return participants.findByArenaIdOrderByScoreDesc(arenaId).stream().map(this::toParticipantView).toList();
+        return currentLeaderboard(arenaId);
     }
 
     @Transactional
@@ -207,6 +213,12 @@ public class ArenaService {
         }
         participants.saveAll(ranked);
 
+        // The live sorted set has no further reason to exist once the arena
+        // is over — arena_participants.final_rank is the durable record from
+        // here, and clearing first means the broadcast below naturally falls
+        // back to that Postgres read (see currentLeaderboard).
+        liveLeaderboard.clear(arenaId);
+
         ArenaView view = toView(arena, null);
         broker.convertAndSend(topic(arenaId, "state"), view);
         broadcastLeaderboard(arenaId);
@@ -240,6 +252,11 @@ public class ArenaService {
         participant.recordAnswer(scored.correct(), points);
         participants.save(participant);
 
+        // Postgres just took the durable write above; Redis gets the same
+        // now-authoritative running total so the live leaderboard reads
+        // never have to re-derive it.
+        liveLeaderboard.recordScore(arenaId, participant.getId(), participant.getScore());
+
         broadcastLeaderboard(arenaId);
 
         if (participant.getUserId() != null) {
@@ -265,9 +282,32 @@ public class ArenaService {
     }
 
     private void broadcastLeaderboard(Long arenaId) {
-        List<ParticipantView> views = participants.findByArenaIdOrderByScoreDesc(arenaId).stream()
-                .map(this::toParticipantView).toList();
-        broker.convertAndSend(topic(arenaId, "leaderboard"), views);
+        broker.convertAndSend(topic(arenaId, "leaderboard"), currentLeaderboard(arenaId));
+    }
+
+    /**
+     * Ranking and scores come from the Redis sorted set; display fields
+     * (name, correct/answer counts, final rank) that never lived in Redis
+     * are filled in from the matching Postgres rows, in Redis's order. An
+     * empty sorted set — cold arena, or Redis unreachable — falls straight
+     * back to the Postgres {@code ORDER BY}.
+     */
+    private List<ParticipantView> currentLeaderboard(Long arenaId) {
+        List<ArenaLeaderboardService.ScoreEntry> ranked = liveLeaderboard.top(arenaId);
+        if (ranked.isEmpty()) {
+            return participants.findByArenaIdOrderByScoreDesc(arenaId).stream()
+                    .map(this::toParticipantView).toList();
+        }
+
+        Map<Long, ArenaParticipant> byId = participants
+                .findAllById(ranked.stream().map(ArenaLeaderboardService.ScoreEntry::participantId).toList())
+                .stream().collect(Collectors.toMap(ArenaParticipant::getId, p -> p));
+
+        return ranked.stream()
+                .map(entry -> byId.get(entry.participantId()))
+                .filter(Objects::nonNull)
+                .map(this::toParticipantView)
+                .toList();
     }
 
     private int points(int timeLimitSec, Integer responseTimeMs) {

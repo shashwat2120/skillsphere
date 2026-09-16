@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { api, errorMessage } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { useArenaSocket } from '@/lib/useArenaSocket'
+import { ArenaJoinQr } from '@/components/ArenaJoinQr'
 
 interface QuestionView {
   arenaQuestionId: number
@@ -130,6 +131,11 @@ export function ArenaHostPage() {
               <Copy className="size-3.5" />
             </button>
           </div>
+
+          <div className="mt-5 flex justify-center">
+            <ArenaJoinQr url={joinUrl} />
+          </div>
+          <p className="mt-2 text-xs text-fg-subtle">Scan to join on a phone</p>
 
           <div className="mt-6 flex items-center justify-center gap-2 text-sm text-fg-muted">
             <Users className="size-4" /> {participants.length || arena.participantCount} joined
