@@ -254,6 +254,23 @@
             <artifactId>testcontainers-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Isolates the test suite from the shared, real Redpanda broker
+             every developer's own services also point at. Without this,
+             running the tests publishes real events onto skill-catalog-
+             events/skill-prerequisite-events, permanently polluting every
+             downstream service's Kafka-synced read-model mirror with
+             test-generated rows whose IDs can coincidentally collide with
+             real ones — this happened live during this project's own
+             Sprint 6 work and had to be cleaned up by hand. Redpanda, not
+             the generic Kafka container: same reasoning as Postgres over
+             H2 in IntegrationTest's own class comment, test the broker
+             actually shipped (see docker-compose.yml's own redpanda
+             service), not a stand-in with different behaviour. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-redpanda</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-test</artifactId>
