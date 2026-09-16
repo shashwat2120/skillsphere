@@ -2,7 +2,35 @@
 
 **Every claim about what a person knows comes with proof that can be checked.**
 
+![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?logo=springboot&logoColor=white)
+![Spring Modulith](https://img.shields.io/badge/Spring%20Modulith-2.1.1-6DB33F?logo=spring&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Kafka](https://img.shields.io/badge/Kafka-Redpanda-231F20?logo=apachekafka&logoColor=white)
+![Cost](https://img.shields.io/badge/infra%20cost-%240-brightgreen)
+
 A learning platform built around a simple inversion: most LMS products treat a *course* as the thing you own — watch videos 1, 2, 3, take a quiz, get a certificate that proves you finished, not that you learned. SkillSphere makes **the skill** the first-class entity instead. A course is evidence a skill was acquired. An assessment is a measurement instrument. A career is a target vector of skills. Everything else — the adaptive engine, the AI viva, the skill passport — follows from that one modeling decision.
+
+## Demo
+
+<video src="docs/media/skillsphere-demo-final.mp4" controls muted title="SkillSphere demo"></video>
+
+> If the player above doesn't render (e.g. viewing outside GitHub), watch/download it directly: [`docs/media/skillsphere-demo-final.mp4`](docs/media/skillsphere-demo-final.mp4).
+
+<details>
+<summary><strong>Table of contents</strong></summary>
+
+- [Demo](#demo)
+- [Why this exists](#why-this-exists)
+- [Two sprints, one codebase](#two-sprints-one-codebase)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Running it locally](#running-it-locally)
+- [Tests](#tests)
+
+</details>
 
 ```
 Pick a career goal        →  "Backend Java Developer"
