@@ -71,6 +71,31 @@ skillsphere:
     cors:
       allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      ollama:
+        sliding-window-type: count_based
+        sliding-window-size: 5
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        # Generation genuinely takes several seconds on CPU inference — this
+        # only flags calls slow even by that standard, well under the 45s
+        # read timeout ollama.timeout-seconds actually enforces.
+        slow-call-duration-threshold: 20s
+        slow-call-rate-threshold: 50
+        # Longer than the internal-service breakers: an absent Ollama in a
+        # dev environment is usually down for minutes, not one blip, so
+        # there is no point retrying the open state every 10s.
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        register-health-indicator: true
+  retry:
+    instances:
+      ollama:
+        max-attempts: 2
+        wait-duration: 500ms
+
 eureka:
   client:
     service-url:

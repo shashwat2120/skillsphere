@@ -1,6 +1,8 @@
 package com.skillsphere.verification.internal;
 
 import com.skillsphere.shared.error.ServiceUnavailableException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.MediaType;
@@ -68,6 +70,10 @@ public class OllamaClient {
      * Callers parse it themselves — this method's job ends at "the HTTP call
      * to Ollama succeeded and returned some text."
      */
+    private static final String CB_NAME = "ollama";
+
+    @CircuitBreaker(name = CB_NAME, fallbackMethod = "generateJsonUnavailable")
+    @Retry(name = CB_NAME)
     public String generateJson(String systemPrompt, String userPrompt) {
         ObjectNode body = objectMapper.createObjectNode();
         body.put("model", properties.model());
@@ -103,5 +109,13 @@ public class OllamaClient {
 
     public String model() {
         return properties.model();
+    }
+
+    @SuppressWarnings("unused")
+    private String generateJsonUnavailable(String systemPrompt, String userPrompt, Throwable cause) {
+        log.warn("Ollama circuit breaker open or call failed: {}", cause.toString());
+        throw new OllamaUnavailableException(
+                "Could not reach the local model at " + properties.baseUrl()
+                        + ". Is Ollama running? (ollama serve)", cause);
     }
 }

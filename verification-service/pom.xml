@@ -29,6 +29,7 @@
         <java.version>21</java.version>
         <springdoc.version>3.1.1</springdoc.version>
         <spring-cloud.version>2025.1.2</spring-cloud.version>
+        <resilience4j.version>2.3.0</resilience4j.version>
     </properties>
 
     <dependencyManagement>
@@ -37,6 +38,13 @@
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
                 <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-bom</artifactId>
+                <version>${resilience4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -182,6 +190,17 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- ==================== Resilience ==================== -->
+        <!-- Guards OllamaClient's one outbound call. Same reasoning as
+             career-service's MasteryClient/EvidenceLookupHttpClient: fail
+             fast rather than hang a request thread for the local model's
+             full read timeout, and stop hammering an Ollama that has
+             already shown it's down. -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
         </dependency>
 
         <!-- ==================== Boilerplate ==================== -->
