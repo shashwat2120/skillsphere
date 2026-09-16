@@ -34,4 +34,19 @@ public interface LearningEventRepository extends JpaRepository<LearningEvent, Lo
             order by e.occurredAt desc
            """)
     List<LearningEvent> findRecentResponses(@Param("userId") Long userId, org.springframework.data.domain.Pageable page);
+
+    /** This learner's whole answer history — the what-if simulator's basis for a personal study-velocity estimate. */
+    List<LearningEvent> findByUserIdAndEventType(Long userId, LearningEventType eventType);
+
+    /**
+     * Every {@code ITEM_ANSWERED} event ever recorded, across every learner —
+     * item analysis's raw material. Pulled in full rather than aggregated in
+     * SQL: computing p-value is trivial either way, but the upper-lower 27%
+     * discrimination method needs each respondent's overall accuracy ranked
+     * against their peers first, which is far simpler to express in Java than
+     * as a single query, and this project's data volumes make the difference
+     * immaterial.
+     */
+    @Query("select e from LearningEvent e where e.eventType = 'ITEM_ANSWERED' and e.entityType = 'ITEM'")
+    List<LearningEvent> findAllItemAnswered();
 }

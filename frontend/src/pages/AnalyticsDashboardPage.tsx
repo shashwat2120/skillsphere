@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, Loader2, RefreshCw, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { api, errorMessage } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,15 @@ interface RiskScoreView {
   computedAt: string
 }
 
+interface ItemStats {
+  itemId: number
+  skillId: number | null
+  respondentCount: number
+  pValue: number
+  discrimination: number
+  lowSample: boolean
+}
+
 /**
  * Where the class is struggling, and who is about to quit — with the
  * reasons stated plainly, because a flag with no explanation is not
@@ -54,6 +63,11 @@ export function AnalyticsDashboardPage() {
     queryFn: async () => (await api.get<RiskScoreView[]>('/instructor/analytics/at-risk')).data,
   })
 
+  const { data: itemStats, isLoading: itemStatsLoading } = useQuery({
+    queryKey: ['analytics', 'item-analysis'],
+    queryFn: async () => (await api.get<ItemStats[]>('/instructor/analytics/item-analysis')).data,
+  })
+
   const recompute = useMutation({
     mutationFn: async () => api.post('/instructor/analytics/recompute'),
     onSuccess: () => {
@@ -64,7 +78,7 @@ export function AnalyticsDashboardPage() {
   })
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <header className="mb-6 flex items-center justify-between border-b border-line pb-5">
         <div>
           <h1 className="text-[19px] font-semibold">Class analytics</h1>
@@ -112,6 +126,67 @@ export function AnalyticsDashboardPage() {
           <RiskCard key={r.id} risk={r} index={i} />
         ))}
       </div>
+
+      <h2 className="mb-3 mt-8 flex items-center gap-2 border-t border-line pt-6 text-sm font-medium">
+        <ClipboardList className="size-4 text-available" /> Item analysis
+      </h2>
+      <p className="mb-3 text-xs text-fg-muted">
+        p-value (proportion correct) and discrimination (upper-lower 27% method) per item, worst
+        discrimination first — those are the items most worth revising or re-checking the key on.
+      </p>
+
+      {itemStatsLoading && <div className="skeleton h-32 w-full rounded-sq-lg" />}
+
+      {!itemStatsLoading && !itemStats?.length && (
+        <div className="rounded-sq border border-dashed border-line py-10 text-center">
+          <ClipboardList className="mx-auto size-5 text-fg-muted" />
+          <p className="mt-2 text-sm font-medium">No item responses yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-fg-muted">
+            Once learners start answering items, p-value and discrimination appear here per item.
+          </p>
+        </div>
+      )}
+
+      {!!itemStats?.length && <ItemAnalysisTable items={itemStats} />}
+    </div>
+  )
+}
+
+function ItemAnalysisTable({ items }: { items: ItemStats[] }) {
+  return (
+    <div className="overflow-x-auto rounded-sq border border-line">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-line text-xs text-fg-muted">
+            <th className="px-3 py-2 font-medium">Item</th>
+            <th className="px-3 py-2 font-medium">Skill</th>
+            <th className="px-3 py-2 font-medium">Respondents</th>
+            <th className="px-3 py-2 font-medium">p-value</th>
+            <th className="px-3 py-2 font-medium">Discrimination</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => {
+            const tone =
+              item.discrimination < 0.1 ? 'decaying' : item.discrimination < 0.2 ? 'available' : 'mastered'
+            return (
+              <tr key={item.itemId} className="border-b border-line last:border-0">
+                <td className="num px-3 py-2">{item.itemId}</td>
+                <td className="num px-3 py-2 text-fg-muted">{item.skillId ?? '—'}</td>
+                <td className="num px-3 py-2 text-fg-muted">
+                  {item.respondentCount}
+                  {item.lowSample && <span className="legend ml-1.5 text-fg-muted">low sample</span>}
+                </td>
+                <td className="num px-3 py-2">{Math.round(item.pValue * 100)}%</td>
+                <td className="num px-3 py-2 font-medium" style={{ color: `var(--${tone})` }}>
+                  {item.discrimination >= 0 ? '+' : ''}
+                  {item.discrimination.toFixed(2)}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

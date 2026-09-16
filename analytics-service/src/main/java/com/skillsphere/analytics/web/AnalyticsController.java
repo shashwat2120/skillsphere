@@ -3,6 +3,7 @@ package com.skillsphere.analytics.web;
 import com.skillsphere.analytics.domain.RiskScore;
 import com.skillsphere.analytics.domain.RiskScoreRepository;
 import com.skillsphere.analytics.internal.AnalyticsQueryService;
+import com.skillsphere.analytics.internal.ItemAnalysisService;
 import com.skillsphere.analytics.internal.RiskScoringService;
 import com.skillsphere.shared.error.NotFoundException;
 import com.skillsphere.shared.security.CurrentUser;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -32,6 +34,7 @@ public class AnalyticsController {
     private final AnalyticsQueryService queryService;
     private final RiskScoringService riskScoringService;
     private final RiskScoreRepository riskScores;
+    private final ItemAnalysisService itemAnalysisService;
 
     public record RiskScoreView(Long id, Long userId, double score, String band,
                                  String factors, boolean earlyWindow, boolean intervened, String computedAt) {
@@ -50,6 +53,18 @@ public class AnalyticsController {
                     + "flag is never shown without its reasons.")
     public List<RiskScoreView> atRisk() {
         return queryService.atRiskQueue().stream().map(this::toView).toList();
+    }
+
+    @GetMapping("/api/instructor/analytics/item-analysis")
+    @Operation(summary = "Item analysis — p-value and discrimination per item",
+            description = "Classical test-theory diagnostics computed on demand from learning_events: "
+                    + "p-value (proportion of respondents who answered correctly) and discrimination "
+                    + "(upper-lower 27% method, respondents ranked by their overall accuracy across "
+                    + "everything they've ever answered). Sorted lowest-discrimination-first — the items "
+                    + "most worth an instructor's attention come first. Optionally filtered to one skill; "
+                    + "the ability ranking itself always draws on each respondent's whole history.")
+    public List<ItemAnalysisService.ItemStats> itemAnalysis(@RequestParam(required = false) Long skillId) {
+        return itemAnalysisService.analyze(skillId);
     }
 
     @PostMapping("/api/instructor/analytics/recompute")
