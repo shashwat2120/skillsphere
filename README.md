@@ -24,7 +24,7 @@ A learning platform built around a simple inversion: most LMS products treat a *
 
 - [Demo](#demo)
 - [Why this exists](#why-this-exists)
-- [Two sprints, one codebase](#two-sprints-one-codebase)
+- [Monolith to microservices](#monolith-to-microservices)
 - [Architecture](#architecture)
 - [Tech stack](#tech-stack)
 - [Running it locally](#running-it-locally)
@@ -63,14 +63,14 @@ Both gaps are the same gap: **nobody can trust a claim about what someone knows.
 
 Every score in this system comes from a named psychometric model — Elo, Item Response Theory, Bayesian Knowledge Tracing — not an averaged quiz percentage, and every recommendation exposes its reasoning chain. Those are the two things a skeptical reviewer checks first, so they're built in rather than bolted on.
 
-## Two sprints, one codebase
+## Monolith to microservices
 
-**Sprint 5** builds the full product as a modular Spring Boot monolith — [Spring Modulith](https://spring.io/projects/spring-modulith) enforces real module boundaries at build time, which is what turns Sprint 6 into an actual extraction instead of a rewrite. **Sprint 6** takes the same codebase and splits it into Spring Cloud microservices, one module at a time, each one verified live against the running system before the next starts.
+**Phase 1** builds the full product as a modular Spring Boot monolith — [Spring Modulith](https://spring.io/projects/spring-modulith) enforces real module boundaries at build time, which is what turns Phase 2 into an actual extraction instead of a rewrite. **Phase 2** takes the same codebase and splits it into Spring Cloud microservices, one module at a time, each one verified live against the running system before the next starts.
 
 | | Status |
 |---|---|
-| **Sprint 5 — monolith** | Feature-complete. All 11 phases built; three showpieces (adaptive diagnostic engine, AI viva, live arena with confusion detection) fully working, not stubbed. |
-| **Sprint 6 — microservices** | In progress. Platform layer live (Eureka, Config Server, Gateway). 3 of 9 services fully extracted and verified end-to-end: **identity**, **notification**, **analytics**. Database-per-service, Resilience4j, Prometheus/Grafana and Zipkin tracing are scoped but not yet started. |
+| **Phase 1 — Monolith** | Feature-complete. All 11 phases built; three showpieces (adaptive diagnostic engine, AI viva, live arena with confusion detection) fully working, not stubbed. |
+| **Phase 2 — Microservices** | In progress. Platform layer live (Eureka, Config Server, Gateway). 3 of 9 services fully extracted and verified end-to-end: **identity**, **notification**, **analytics**. Database-per-service, Resilience4j, Prometheus/Grafana and Zipkin tracing are scoped but not yet started. |
 
 See [`SKILLSPHERE.md`](SKILLSPHERE.md) for the full design document — research citations, domain model, event catalogue, API surface, and the build order this project actually followed.
 
@@ -127,7 +127,7 @@ Every extracted service keeps its own JWT validation (the same shared signing se
 
 ## Tech stack
 
-**Backend** — Java 21 · Spring Boot 4.1.1 · Spring Modulith 2.1.1 (Sprint 5's module boundaries) · Spring Cloud 2025.1.2 "Oakwood" (Sprint 6) · Spring Data JPA + PostgreSQL 16 (recursive CTEs for the skill graph) · Spring Security + JJWT · Redis (JWT denylist, rate limiting) · Kafka-wire-protocol via Redpanda · Flyway · springdoc-openapi
+**Backend** — Java 21 · Spring Boot 4.1.1 · Spring Modulith 2.1.1 (Phase 1's module boundaries) · Spring Cloud 2025.1.2 "Oakwood" (Phase 2) · Spring Data JPA + PostgreSQL 16 (recursive CTEs for the skill graph) · Spring Security + JJWT · Redis (JWT denylist, rate limiting) · Kafka-wire-protocol via Redpanda · Flyway · springdoc-openapi
 
 **Frontend** — React 19 · TypeScript · Vite · Tailwind CSS 4 · shadcn/ui (Radix primitives) · TanStack Query · Zustand · Recharts · STOMP.js (WebSocket client) · Framer Motion
 
@@ -171,4 +171,4 @@ Every extraction in this project is verified two ways: the automated suite (port
 
 ---
 
-*Built across two sprints as an academic capstone project, entirely within a Claude Pro subscription's usage limits — no paid infrastructure anywhere in the stack.*
+*Built end-to-end with zero paid infrastructure — no managed services, no hosting bill, no paid APIs anywhere in the stack.*
