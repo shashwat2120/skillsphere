@@ -26,6 +26,7 @@ A learning platform built around a simple inversion: most LMS products treat a *
 - [Why this exists](#why-this-exists)
 - [Monolith to microservices](#monolith-to-microservices)
 - [Architecture](#architecture)
+- [Analytics](#analytics)
 - [Tech stack](#tech-stack)
 - [Running it locally](#running-it-locally)
 - [Tests](#tests)
@@ -124,6 +125,16 @@ Every extracted service keeps its own JWT validation (the same shared signing se
 ### Why database-per-service is deferred
 
 51 real foreign keys reference `users(id)` alone, spanning nearly every table in the schema. Dropping all of them and standing up per-service databases is genuine, separate infrastructure work — deliberately *not* combined with any single service's extraction, so that a large unverified risk (breaking referential integrity across the whole schema) is never bundled with another large unverified risk (does this service actually work once it's its own process). Each is proven independently; this one is next once every service is out.
+
+## Analytics
+
+`analytics-service` is one of the three fully extracted Phase 2 services, and it's real, working logic — not stubs:
+
+- **At-risk detection** — every 5 minutes (and on demand via `POST /analytics/recompute`), each active learner is scored 0–1 from three weighted, honest signals: a recent-accuracy penalty over their last 15 responses (0.40), a failure-cluster penalty for 3+ wrong answers on the same skill within their last 5 responses (0.35), and an inactivity penalty based on days since last activity (0.25). Scores band into LOW / MEDIUM / HIGH (thresholds 0.33 / 0.66) and get a 1.25× boost during a learner's first two weeks — the window where most dropouts actually happen. Every score is append-only and carries machine-readable contributing factors, not just a number instructors have to trust blindly.
+- **Cohort dashboard** — a read-only instructor view (`GET /analytics/cohort`): active-today count, total tracked learners, 7-day rolling accuracy, and flagged/high-risk counts, computed straight from the risk-score table.
+- **Item analysis** — classical test-theory statistics per assessment item (`GET /analytics/item-analysis`): p-value (proportion correct) and discrimination via the upper–lower 27% method (Kelley, 1939), using each learner's lifetime accuracy as an ability proxy. Items with fewer than 10 respondents are flagged `lowSample` rather than silently trusted, and results sort lowest-discrimination-first so weak items surface immediately.
+- **What-if readiness simulator** — a deterministic, non-ML 6-month projection (`GET /me/what-if?hoursPerWeek=`): `readiness(m) = 1 − (1 − baseline) · e^(−k·cumulativeItems(m))`, a diminishing-returns curve driven by the learner's own historical pace (correct answers per hour, from their real response-time history), not a guess.
+- **Instructor follow-up** — instructors acknowledge a specific flagged score (`POST /analytics/at-risk/{id}/acknowledge`) to mark it as followed up on, so the at-risk queue stays an actionable worklist instead of a static leaderboard.
 
 ## Tech stack
 
